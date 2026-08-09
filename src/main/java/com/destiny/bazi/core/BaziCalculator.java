@@ -2,7 +2,9 @@ package com.destiny.bazi.core;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -69,7 +71,30 @@ public final class BaziCalculator {
         int hourStemIdx = GanZhi.mod(ziHourStemIdx + hourBranchIdx, 10);
         Pillar hourPillar = new Pillar(hourStemIdx, hourBranchIdx);
 
-        return new BaziResult(yearPillar, monthPillar, dayPillar, hourPillar, effectiveYear, earlyZiShift);
+        // ---- 十神：以日干為「日主」，推算四柱天干與地支藏干的十神 ----
+        PillarTenGods yearTenGods = tenGodsFor(dayStemIdx, yearPillar, false);
+        PillarTenGods monthTenGods = tenGodsFor(dayStemIdx, monthPillar, false);
+        PillarTenGods dayTenGods = tenGodsFor(dayStemIdx, dayPillar, true);
+        PillarTenGods hourTenGods = tenGodsFor(dayStemIdx, hourPillar, false);
+
+        return new BaziResult(yearPillar, monthPillar, dayPillar, hourPillar, effectiveYear, earlyZiShift,
+                yearTenGods, monthTenGods, dayTenGods, hourTenGods);
+    }
+
+    /** 計算單一柱的天干十神（日柱本身標示為「日主」）與地支藏干十神。 */
+    private PillarTenGods tenGodsFor(int dayStemIdx, Pillar pillar, boolean isDayPillar) {
+        String stemTenGod = isDayPillar ? TenGod.RI_ZHU : TenGod.of(dayStemIdx, pillar.getStemIndex());
+
+        int[] hidden = HiddenStems.of(pillar.getBranchIndex());
+        List<HiddenStemGod> hiddenGods = new ArrayList<>();
+        for (int i = 0; i < hidden.length; i++) {
+            int stemIdx = hidden[i];
+            hiddenGods.add(new HiddenStemGod(
+                    GanZhi.STEMS[stemIdx],
+                    TenGod.of(dayStemIdx, stemIdx),
+                    i == 0));
+        }
+        return new PillarTenGods(stemTenGod, hiddenGods);
     }
 
     /** 找出出生時刻所在的「節」區間，回傳對應的月支索引。 */

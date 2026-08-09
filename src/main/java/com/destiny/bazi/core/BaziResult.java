@@ -12,14 +12,25 @@ public final class BaziResult {
     private final int effectiveYear;
     private final boolean earlyZiShift;
 
+    private final PillarTenGods yearTenGods;
+    private final PillarTenGods monthTenGods;
+    private final PillarTenGods dayTenGods;
+    private final PillarTenGods hourTenGods;
+
     public BaziResult(Pillar yearPillar, Pillar monthPillar, Pillar dayPillar, Pillar hourPillar,
-                       int effectiveYear, boolean earlyZiShift) {
+                       int effectiveYear, boolean earlyZiShift,
+                       PillarTenGods yearTenGods, PillarTenGods monthTenGods,
+                       PillarTenGods dayTenGods, PillarTenGods hourTenGods) {
         this.yearPillar = yearPillar;
         this.monthPillar = monthPillar;
         this.dayPillar = dayPillar;
         this.hourPillar = hourPillar;
         this.effectiveYear = effectiveYear;
         this.earlyZiShift = earlyZiShift;
+        this.yearTenGods = yearTenGods;
+        this.monthTenGods = monthTenGods;
+        this.dayTenGods = dayTenGods;
+        this.hourTenGods = hourTenGods;
     }
 
     public Pillar getYearPillar() {
@@ -50,5 +61,21 @@ public final class BaziResult {
 
     public String getZodiac() {
         return GanZhi.ZODIAC[yearPillar.getBranchIndex()];
+    }
+
+    public PillarTenGods getYearTenGods() {
+        return yearTenGods;
+    }
+
+    public PillarTenGods getMonthTenGods() {
+        return monthTenGods;
+    }
+
+    public PillarTenGods getDayTenGods() {
+        return dayTenGods;
+    }
+
+    public PillarTenGods getHourTenGods() {
+        return hourTenGods;
     }
 }

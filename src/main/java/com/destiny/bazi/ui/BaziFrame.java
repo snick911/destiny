@@ -176,10 +176,10 @@ public final class BaziFrame extends JFrame {
 
         BaziResult result = calculator.calculate(year, month, day, hour, minute);
 
-        yearPanel.setPillar(result.getYearPillar());
-        monthPanel.setPillar(result.getMonthPillar());
-        dayPanel.setPillar(result.getDayPillar());
-        hourPanel.setPillar(result.getHourPillar());
+        yearPanel.setPillar(result.getYearPillar(), result.getYearTenGods());
+        monthPanel.setPillar(result.getMonthPillar(), result.getMonthTenGods());
+        dayPanel.setPillar(result.getDayPillar(), result.getDayTenGods());
+        hourPanel.setPillar(result.getHourPillar(), result.getHourTenGods());
 
         summaryLabel.setText(String.format(
                 "八字：%s年 %s月 %s日 %s時　｜　生肖：%s",
