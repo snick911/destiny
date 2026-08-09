@@ -62,9 +62,12 @@ public final class PillarPanel extends JPanel {
         hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont(hiddenSize));
         hiddenGodsLabel.setForeground(DarkTheme.FG_SECONDARY);
 
+        // 所有列一律以 NORTH 對齊、weighty=0，僅底部藏干列吸收多餘高度，
+        // 確保各柱的天干／地支字元無論藏干行數多寡都能水平對齊。
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridx = 0;
         gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.anchor = GridBagConstraints.NORTH;
         gc.insets = new Insets(2, 4, 2, 4);
 
         gc.gridy = 0;
@@ -86,6 +89,7 @@ public final class PillarPanel extends JPanel {
         add(branchElementLabel, gc);
         gc.gridy = 6;
         gc.insets = new Insets(0, 4, 4, 4);
+        gc.weighty = 1.0;
         add(hiddenGodsLabel, gc);
     }
 

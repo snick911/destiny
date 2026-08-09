@@ -4,12 +4,37 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 護眼暗色主題：以低對比、去飽和的深色調為主，搭配依五行區分的柔和點綴色，
- * 避免長時間閱讀造成的視覺疲勞。
+ * 避免長時間閱讀造成的視覺疲勞；並優先選用可正確顯示繁體中文的字型。
  */
 public final class DarkTheme {
+
+    // 依常見作業系統優先順序列出的繁體中文字型；找不到時退回系統無襯線字型。
+    private static final String[] TC_FONT_CANDIDATES = {
+            "Microsoft JhengHei UI", "Microsoft JhengHei", "PMingLiU",
+            "PingFang TC", "Heiti TC",
+            "Noto Sans TC", "Noto Sans CJK TC", "Noto Sans CJK TC Regular",
+            "AR PL UMing TW", "AR PL UKai TW", "WenQuanYi Zen Hei"
+    };
+
+    /** 全域基準字型（優先繁體中文字型，找不到則退回系統無襯線字型）。 */
+    public static final Font BASE_FONT = resolveTraditionalChineseFont();
+
+    private static Font resolveTraditionalChineseFont() {
+        Set<String> available = new HashSet<>(Arrays.asList(
+                GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
+        for (String candidate : TC_FONT_CANDIDATES) {
+            if (available.contains(candidate)) {
+                return new Font(candidate, Font.PLAIN, 13);
+            }
+        }
+        return new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    }
 
     public static final Color BG_APP = new Color(0x1D, 0x21, 0x27);
     public static final Color BG_PANEL = new Color(0x25, 0x2A, 0x31);
@@ -41,8 +66,21 @@ public final class DarkTheme {
         };
     }
 
-    /** 套用全域深色 UIManager 預設值，讓 JSpinner、JButton 等原生元件也符合暗色主題。 */
+    /**
+     * 套用全域深色 UIManager 預設值，讓 JSpinner、JButton 等原生元件也符合暗色主題，
+     * 並套用繁體中文字型（Nimbus 透過 defaultFont 一次套用；其餘元件逐一指定作為備援）。
+     */
     public static void applyGlobal() {
+        UIManager.put("defaultFont", BASE_FONT);
+        String[] fontKeys = {
+                "Label.font", "Button.font", "TextField.font", "Spinner.font", "ComboBox.font",
+                "Menu.font", "MenuItem.font", "MenuBar.font", "OptionPane.font", "OptionPane.messageFont",
+                "ToolTip.font", "TitledBorder.font", "FileChooser.font", "PopupMenu.font", "Panel.font"
+        };
+        for (String key : fontKeys) {
+            UIManager.put(key, BASE_FONT);
+        }
+
         UIManager.put("control", BG_PANEL);
         UIManager.put("info", BG_CARD);
         UIManager.put("nimbusBase", BG_APP);

@@ -36,7 +36,7 @@ public final class BaziFrame extends JFrame {
     private static final float BUTTON_SIZE = 15f;
     private static final float SUMMARY_SIZE = 14f;
     private static final float NOTE_SIZE = 12f;
-    private static final float DAYUN_TITLE_SIZE = 15f;
+    private static final float SECTION_TITLE_SIZE = 15f;
 
     private static final double FONT_SCALE_MIN = 0.7;
     private static final double FONT_SCALE_MAX = 1.8;
@@ -64,6 +64,11 @@ public final class BaziFrame extends JFrame {
 
     private final JLabel titleLabel = new JLabel("子平八字排盤", SwingConstants.CENTER);
     private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時、性別，推算四柱、十神與大運", SwingConstants.CENTER);
+    private final JLabel inputSectionTitle = new JLabel("排盤輸入", SwingConstants.CENTER);
+    private final JLabel fourPillarsSectionTitle = new JLabel("四柱", SwingConstants.CENTER);
+    private final JLabel summarySectionTitle = new JLabel("命盤摘要", SwingConstants.CENTER);
+    private final List<JLabel> sectionTitleLabels =
+            List.of(inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, summarySectionTitle);
     private final List<JLabel> inputLabels = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
@@ -186,11 +191,11 @@ public final class BaziFrame extends JFrame {
         center.setOpaque(false);
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
         center.add(buildInputPanel());
-        center.add(Box.createVerticalStrut(20));
-        center.add(buildOutputPanel());
-        center.add(Box.createVerticalStrut(20));
+        center.add(Box.createVerticalStrut(22));
+        center.add(buildFourPillarsPanel());
+        center.add(Box.createVerticalStrut(22));
         center.add(buildDaYunPanel());
-        center.add(Box.createVerticalStrut(20));
+        center.add(Box.createVerticalStrut(22));
         center.add(buildSummaryPanel());
 
         JScrollPane scrollPane = new JScrollPane(center);
@@ -222,23 +227,30 @@ public final class BaziFrame extends JFrame {
     }
 
     private JComponent buildInputPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 10));
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
         DarkTheme.styleCard(panel);
 
-        panel.add(labeledSpinner("年", yearSpinner));
-        panel.add(labeledSpinner("月", monthSpinner));
-        panel.add(labeledSpinner("日", daySpinner));
-        panel.add(labeledSpinner("時", hourSpinner));
-        panel.add(labeledSpinner("分", minuteSpinner));
+        inputSectionTitle.setForeground(DarkTheme.ACCENT);
+        panel.add(inputSectionTitle, BorderLayout.NORTH);
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 10));
+        row.setOpaque(false);
+
+        row.add(labeledSpinner("年", yearSpinner));
+        row.add(labeledSpinner("月", monthSpinner));
+        row.add(labeledSpinner("日", daySpinner));
+        row.add(labeledSpinner("時", hourSpinner));
+        row.add(labeledSpinner("分", minuteSpinner));
 
         genderCombo.setPreferredSize(new Dimension(70, 30));
         genderCombo.setMaximumSize(new Dimension(80, 30));
-        panel.add(labeledComponent("性別", genderCombo));
+        row.add(labeledComponent("性別", genderCombo));
 
         DarkTheme.styleAccentButton(calcButton);
         calcButton.addActionListener(e -> calculate());
-        panel.add(calcButton);
+        row.add(calcButton);
 
+        panel.add(row, BorderLayout.CENTER);
         return panel;
     }
 
@@ -266,12 +278,19 @@ public final class BaziFrame extends JFrame {
         return wrap;
     }
 
-    private JComponent buildOutputPanel() {
-        JPanel panel = new JPanel(new GridLayout(1, 4, 14, 0));
-        panel.setOpaque(false);
+    private JComponent buildFourPillarsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        DarkTheme.styleCard(panel);
+
+        fourPillarsSectionTitle.setForeground(DarkTheme.ACCENT);
+        panel.add(fourPillarsSectionTitle, BorderLayout.NORTH);
+
+        JPanel row = new JPanel(new GridLayout(1, 4, 14, 0));
+        row.setOpaque(false);
         for (PillarPanel p : pillarPanels) {
-            panel.add(p);
+            row.add(p);
         }
+        panel.add(row, BorderLayout.CENTER);
         return panel;
     }
 
@@ -322,12 +341,17 @@ public final class BaziFrame extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         DarkTheme.styleCard(panel);
 
+        summarySectionTitle.setForeground(DarkTheme.ACCENT);
+        summarySectionTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         summaryLabel.setForeground(DarkTheme.FG_PRIMARY);
         summaryLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         noteLabel.setForeground(DarkTheme.FG_SECONDARY);
         noteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        panel.add(summarySectionTitle);
+        panel.add(Box.createVerticalStrut(8));
         panel.add(summaryLabel);
         panel.add(Box.createVerticalStrut(6));
         panel.add(noteLabel);
@@ -360,8 +384,10 @@ public final class BaziFrame extends JFrame {
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
-        dayunTitleLabel.setFont(dayunTitleLabel.getFont().deriveFont(Font.BOLD, (float) (DAYUN_TITLE_SIZE * fontScale)));
         dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        for (JLabel l : sectionTitleLabels) {
+            l.setFont(l.getFont().deriveFont(Font.BOLD, (float) (SECTION_TITLE_SIZE * fontScale)));
+        }
         for (PillarPanel p : pillarPanels) {
             p.setFontScale(fontScale);
         }
