@@ -8,9 +8,19 @@
 的十神（含年干/月干/時干十神，與各柱地支藏干十神）；並依性別與年干
 陰陽推算大運（順排／逆排、起運歲數與各期干支、十神、藏干）。
 
-## 編譯與執行
+## 執行（直接使用已建置的 JAR）
 
-需要 JDK 17 以上（純 JDK，不依賴任何第三方套件；程式碼相容於 `--release 17`）。
+`dist/destiny-bazi.jar` 是以 `--release 17` 編譯、可獨立執行的 JAR
+（位元組碼版本 61＝Java 17；純 JDK，不依賴任何第三方套件），只需
+JRE/JDK 17 以上即可直接執行：
+
+```bash
+java -jar dist/destiny-bazi.jar
+```
+
+## 從原始碼編譯與執行
+
+需要 JDK 17 以上。
 
 ```bash
 # 編譯（以 Java 17 語言／位元組碼相容性編譯）
@@ -18,6 +28,12 @@ javac --release 17 -d out -encoding UTF-8 $(find src/main/java -name "*.java")
 
 # 執行
 java -cp out com.destiny.bazi.Main
+```
+
+若要重新產生 `dist/destiny-bazi.jar`：
+
+```bash
+jar --create --file dist/destiny-bazi.jar --main-class com.destiny.bazi.Main -C out .
 ```
 
 畫面文字一律使用繁體中文，並會優先選用系統上可用的繁體中文字型
@@ -102,6 +118,8 @@ java -cp out com.destiny.bazi.Main
 ## 專案結構
 
 ```
+dist/
+└── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
 ├── core/
