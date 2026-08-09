@@ -13,11 +13,11 @@ import java.awt.*;
  */
 public final class PillarPanel extends JPanel {
 
-    private static final float TITLE_SIZE = 16f;
-    private static final float TEN_GOD_SIZE = 13f;
-    private static final float BIG_CHAR_SIZE = 46f;
-    private static final float ELEMENT_SIZE = 12f;
-    private static final float HIDDEN_SIZE = 11f;
+    private final float titleSize;
+    private final float tenGodSize;
+    private final float bigCharSize;
+    private final float elementSize;
+    private final float hiddenSize;
 
     private final JLabel titleLabel;
     private final JLabel stemTenGodLabel;
@@ -28,27 +28,38 @@ public final class PillarPanel extends JPanel {
     private final JLabel hiddenGodsLabel;
 
     public PillarPanel(String title) {
+        this(title, false);
+    }
+
+    /** compact=true 用於顯示較多欄位的大運列，採用較小的預設字型。 */
+    public PillarPanel(String title, boolean compact) {
         super(new GridBagLayout());
         DarkTheme.styleCard(this);
 
+        titleSize = compact ? 12f : 16f;
+        tenGodSize = compact ? 11f : 13f;
+        bigCharSize = compact ? 28f : 46f;
+        elementSize = compact ? 10f : 12f;
+        hiddenSize = compact ? 10f : 11f;
+
         titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(DarkTheme.FG_SECONDARY);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, TITLE_SIZE));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, titleSize));
 
         stemTenGodLabel = new JLabel(" ", SwingConstants.CENTER);
-        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, TEN_GOD_SIZE));
+        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, tenGodSize));
         stemTenGodLabel.setForeground(DarkTheme.ACCENT);
 
         stemLabel = bigCharLabel();
         branchLabel = bigCharLabel();
 
         stemElementLabel = new JLabel(" ", SwingConstants.CENTER);
-        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont(ELEMENT_SIZE));
+        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont(elementSize));
         branchElementLabel = new JLabel(" ", SwingConstants.CENTER);
-        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont(ELEMENT_SIZE));
+        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont(elementSize));
 
         hiddenGodsLabel = new JLabel(" ", SwingConstants.CENTER);
-        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont(HIDDEN_SIZE));
+        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont(hiddenSize));
         hiddenGodsLabel.setForeground(DarkTheme.FG_SECONDARY);
 
         GridBagConstraints gc = new GridBagConstraints();
@@ -80,19 +91,24 @@ public final class PillarPanel extends JPanel {
 
     private JLabel bigCharLabel() {
         JLabel label = new JLabel(" ", SwingConstants.CENTER);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, BIG_CHAR_SIZE));
+        label.setFont(label.getFont().deriveFont(Font.BOLD, bigCharSize));
         return label;
     }
 
     /** 依比例縮放本卡片內所有文字的字型大小。scale=1.0 為預設大小。 */
     public void setFontScale(double scale) {
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, (float) (TITLE_SIZE * scale)));
-        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, (float) (TEN_GOD_SIZE * scale)));
-        stemLabel.setFont(stemLabel.getFont().deriveFont(Font.BOLD, (float) (BIG_CHAR_SIZE * scale)));
-        branchLabel.setFont(branchLabel.getFont().deriveFont(Font.BOLD, (float) (BIG_CHAR_SIZE * scale)));
-        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont((float) (ELEMENT_SIZE * scale)));
-        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont((float) (ELEMENT_SIZE * scale)));
-        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont((float) (HIDDEN_SIZE * scale)));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, (float) (titleSize * scale)));
+        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, (float) (tenGodSize * scale)));
+        stemLabel.setFont(stemLabel.getFont().deriveFont(Font.BOLD, (float) (bigCharSize * scale)));
+        branchLabel.setFont(branchLabel.getFont().deriveFont(Font.BOLD, (float) (bigCharSize * scale)));
+        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont((float) (elementSize * scale)));
+        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont((float) (elementSize * scale)));
+        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont((float) (hiddenSize * scale)));
+    }
+
+    /** 更新標題文字（大運卡片需依起訖歲數動態更新標題）。 */
+    public void setTitle(String title) {
+        titleLabel.setText(title);
     }
 
     public void setPillar(Pillar pillar, PillarTenGods tenGods) {

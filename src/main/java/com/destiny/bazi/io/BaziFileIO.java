@@ -1,6 +1,7 @@
 package com.destiny.bazi.io;
 
 import com.destiny.bazi.core.BaziResult;
+import com.destiny.bazi.core.Gender;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,6 +30,7 @@ public final class BaziFileIO {
         props.setProperty("day", String.valueOf(input.day()));
         props.setProperty("hour", String.valueOf(input.hour()));
         props.setProperty("minute", String.valueOf(input.minute()));
+        props.setProperty("gender", input.gender().name());
         props.setProperty("yearPillar", result.getYearPillar().getGanZhi());
         props.setProperty("monthPillar", result.getMonthPillar().getGanZhi());
         props.setProperty("dayPillar", result.getDayPillar().getGanZhi());
@@ -52,7 +54,13 @@ public final class BaziFileIO {
             int day = Integer.parseInt(props.getProperty("day"));
             int hour = Integer.parseInt(props.getProperty("hour"));
             int minute = Integer.parseInt(props.getProperty("minute", "0"));
-            return new BirthInput(year, month, day, hour, minute);
+            Gender gender;
+            try {
+                gender = Gender.valueOf(props.getProperty("gender", Gender.MALE.name()));
+            } catch (IllegalArgumentException e) {
+                gender = Gender.MALE;
+            }
+            return new BirthInput(year, month, day, hour, minute, gender);
         } catch (NumberFormatException e) {
             throw new IOException("檔案格式不正確或內容缺漏", e);
         }

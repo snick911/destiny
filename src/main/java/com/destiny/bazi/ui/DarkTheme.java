@@ -57,6 +57,11 @@ public final class DarkTheme {
         UIManager.put("Label.foreground", FG_PRIMARY);
         UIManager.put("Spinner.background", BG_CARD);
         UIManager.put("Spinner.foreground", FG_PRIMARY);
+        UIManager.put("ComboBox.background", BG_CARD);
+        UIManager.put("ComboBox.foreground", FG_PRIMARY);
+        UIManager.put("ComboBox.selectionBackground", ACCENT_DIM);
+        UIManager.put("ComboBox.selectionForeground", FG_PRIMARY);
+        UIManager.put("ComboBox.buttonBackground", BG_CARD);
         UIManager.put("TextField.background", BG_CARD);
         UIManager.put("TextField.foreground", FG_PRIMARY);
         UIManager.put("TextField.caretForeground", FG_PRIMARY);

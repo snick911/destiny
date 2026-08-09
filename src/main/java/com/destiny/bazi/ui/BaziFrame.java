@@ -2,6 +2,9 @@ package com.destiny.bazi.ui;
 
 import com.destiny.bazi.core.BaziCalculator;
 import com.destiny.bazi.core.BaziResult;
+import com.destiny.bazi.core.DaYunPeriod;
+import com.destiny.bazi.core.DaYunResult;
+import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 
@@ -33,6 +36,7 @@ public final class BaziFrame extends JFrame {
     private static final float BUTTON_SIZE = 15f;
     private static final float SUMMARY_SIZE = 14f;
     private static final float NOTE_SIZE = 12f;
+    private static final float DAYUN_TITLE_SIZE = 15f;
 
     private static final double FONT_SCALE_MIN = 0.7;
     private static final double FONT_SCALE_MAX = 1.8;
@@ -46,6 +50,7 @@ public final class BaziFrame extends JFrame {
     private final JSpinner hourSpinner;
     private final JSpinner minuteSpinner;
     private final JSpinner[] spinners;
+    private final JComboBox<Gender> genderCombo = new JComboBox<>(Gender.values());
 
     private final PillarPanel yearPanel = new PillarPanel("年柱");
     private final PillarPanel monthPanel = new PillarPanel("月柱");
@@ -53,8 +58,12 @@ public final class BaziFrame extends JFrame {
     private final PillarPanel hourPanel = new PillarPanel("時柱");
     private final PillarPanel[] pillarPanels = {yearPanel, monthPanel, dayPanel, hourPanel};
 
+    private final List<PillarPanel> dayunPanels = new ArrayList<>();
+    private final JLabel dayunTitleLabel = new JLabel("大運", SwingConstants.CENTER);
+    private final JLabel dayunNoteLabel = new JLabel(" ", SwingConstants.CENTER);
+
     private final JLabel titleLabel = new JLabel("子平八字排盤", SwingConstants.CENTER);
-    private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時，推算年柱、月柱、日柱、時柱", SwingConstants.CENTER);
+    private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時、性別，推算四柱、十神與大運", SwingConstants.CENTER);
     private final List<JLabel> inputLabels = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
@@ -78,11 +87,14 @@ public final class BaziFrame extends JFrame {
             sp.getEditor().getComponent(0).setBackground(DarkTheme.BG_CARD);
             sp.getEditor().getComponent(0).setForeground(DarkTheme.FG_PRIMARY);
         }
+        genderCombo.setBackground(DarkTheme.BG_CARD);
+        genderCombo.setForeground(DarkTheme.FG_PRIMARY);
+        genderCombo.addActionListener(e -> calculate());
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(buildMenuBar());
         setContentPane(buildContent());
-        setMinimumSize(new Dimension(760, 560));
+        setMinimumSize(new Dimension(780, 600));
         pack();
         setLocationRelativeTo(null);
 
@@ -155,7 +167,9 @@ public final class BaziFrame extends JFrame {
         JOptionPane.showMessageDialog(this,
                 "子平八字排盤\n\n"
                         + "年柱以立春為界、月柱以十二節劃分、日柱以儒略日數推算、\n"
-                        + "時柱以五鼠遁推算，並附十神與地支藏干十神。",
+                        + "時柱以五鼠遁推算，並附十神與地支藏干十神。\n"
+                        + "大運依性別與年干陰陽判定順排／逆排，起運歲數以\n"
+                        + "出生時刻與最近節氣的距離換算（三日折一歲）。",
                 "關於", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -168,12 +182,24 @@ public final class BaziFrame extends JFrame {
 
         root.add(buildHeader(), BorderLayout.NORTH);
 
-        JPanel center = new JPanel(new BorderLayout(0, 20));
+        JPanel center = new JPanel();
         center.setOpaque(false);
-        center.add(buildInputPanel(), BorderLayout.NORTH);
-        center.add(buildOutputPanel(), BorderLayout.CENTER);
-        center.add(buildSummaryPanel(), BorderLayout.SOUTH);
-        root.add(center, BorderLayout.CENTER);
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+        center.add(buildInputPanel());
+        center.add(Box.createVerticalStrut(20));
+        center.add(buildOutputPanel());
+        center.add(Box.createVerticalStrut(20));
+        center.add(buildDaYunPanel());
+        center.add(Box.createVerticalStrut(20));
+        center.add(buildSummaryPanel());
+
+        JScrollPane scrollPane = new JScrollPane(center);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setBackground(DarkTheme.BG_APP);
+        scrollPane.getViewport().setBackground(DarkTheme.BG_APP);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setPreferredSize(new Dimension(780, 640));
+        root.add(scrollPane, BorderLayout.CENTER);
 
         return root;
     }
@@ -205,6 +231,10 @@ public final class BaziFrame extends JFrame {
         panel.add(labeledSpinner("時", hourSpinner));
         panel.add(labeledSpinner("分", minuteSpinner));
 
+        genderCombo.setPreferredSize(new Dimension(70, 30));
+        genderCombo.setMaximumSize(new Dimension(80, 30));
+        panel.add(labeledComponent("性別", genderCombo));
+
         DarkTheme.styleAccentButton(calcButton);
         calcButton.addActionListener(e -> calculate());
         panel.add(calcButton);
@@ -213,6 +243,12 @@ public final class BaziFrame extends JFrame {
     }
 
     private JComponent labeledSpinner(String label, JSpinner spinner) {
+        spinner.setPreferredSize(new Dimension(70, 30));
+        spinner.setMaximumSize(new Dimension(80, 30));
+        return labeledComponent(label, spinner);
+    }
+
+    private JComponent labeledComponent(String label, JComponent component) {
         JPanel wrap = new JPanel();
         wrap.setOpaque(false);
         wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
@@ -222,13 +258,11 @@ public final class BaziFrame extends JFrame {
         l.setAlignmentX(Component.CENTER_ALIGNMENT);
         inputLabels.add(l);
 
-        spinner.setPreferredSize(new Dimension(70, 30));
-        spinner.setAlignmentX(Component.CENTER_ALIGNMENT);
-        spinner.setMaximumSize(new Dimension(80, 30));
+        component.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         wrap.add(l);
         wrap.add(Box.createVerticalStrut(4));
-        wrap.add(spinner);
+        wrap.add(component);
         return wrap;
     }
 
@@ -238,6 +272,48 @@ public final class BaziFrame extends JFrame {
         for (PillarPanel p : pillarPanels) {
             panel.add(p);
         }
+        return panel;
+    }
+
+    private JComponent buildDaYunPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        DarkTheme.styleCard(panel);
+
+        JPanel header = new JPanel();
+        header.setOpaque(false);
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+
+        dayunTitleLabel.setForeground(DarkTheme.ACCENT);
+        dayunTitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        dayunNoteLabel.setForeground(DarkTheme.FG_SECONDARY);
+        dayunNoteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        header.add(dayunTitleLabel);
+        header.add(Box.createVerticalStrut(4));
+        header.add(dayunNoteLabel);
+
+        JPanel row = new JPanel();
+        row.setOpaque(false);
+        row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
+        for (int i = 0; i < BaziCalculator.DAYUN_PERIOD_COUNT; i++) {
+            PillarPanel p = new PillarPanel("大運", true);
+            dayunPanels.add(p);
+            row.add(p);
+            if (i < BaziCalculator.DAYUN_PERIOD_COUNT - 1) {
+                row.add(Box.createHorizontalStrut(10));
+            }
+        }
+
+        JScrollPane scroll = new JScrollPane(row,
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setPreferredSize(new Dimension(680, 240));
+
+        panel.add(header, BorderLayout.NORTH);
+        panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
@@ -280,10 +356,16 @@ public final class BaziFrame extends JFrame {
             Component editor = sp.getEditor().getComponent(0);
             editor.setFont(editor.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         }
+        genderCombo.setFont(genderCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        dayunTitleLabel.setFont(dayunTitleLabel.getFont().deriveFont(Font.BOLD, (float) (DAYUN_TITLE_SIZE * fontScale)));
+        dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         for (PillarPanel p : pillarPanels) {
+            p.setFontScale(fontScale);
+        }
+        for (PillarPanel p : dayunPanels) {
             p.setFontScale(fontScale);
         }
         revalidate();
@@ -306,7 +388,8 @@ public final class BaziFrame extends JFrame {
                     "輸入錯誤", JOptionPane.WARNING_MESSAGE);
             return null;
         }
-        return new BirthInput(year, month, day, hour, minute);
+        Gender gender = (Gender) genderCombo.getSelectedItem();
+        return new BirthInput(year, month, day, hour, minute, gender);
     }
 
     private void calculate() {
@@ -316,6 +399,7 @@ public final class BaziFrame extends JFrame {
         }
         BaziResult result = calculator.calculate(input.year(), input.month(), input.day(), input.hour(), input.minute());
         renderResult(result);
+        renderDaYun(result, input);
     }
 
     private void renderResult(BaziResult result) {
@@ -338,6 +422,25 @@ public final class BaziFrame extends JFrame {
             note.append("　23 時屬「晚子時」，日柱已順延至次日推算。");
         }
         noteLabel.setText(note.toString());
+    }
+
+    private void renderDaYun(BaziResult result, BirthInput input) {
+        DaYunResult dayun = calculator.calculateDaYun(result, input.year(), input.month(), input.day(),
+                input.hour(), input.minute(), input.gender());
+
+        dayunNoteLabel.setText(String.format("%s命，年干%s，%s，起運約 %d 歲 %d 個月 %d 天",
+                input.gender().getLabel(),
+                result.getYearPillar().getStemIndex() % 2 == 0 ? "陽" : "陰",
+                dayun.isForward() ? "順排" : "逆排",
+                dayun.getStartAgeYears(), dayun.getStartAgeMonths(), dayun.getStartAgeDays()));
+
+        List<DaYunPeriod> periods = dayun.getPeriods();
+        for (int i = 0; i < dayunPanels.size() && i < periods.size(); i++) {
+            DaYunPeriod period = periods.get(i);
+            PillarPanel panel = dayunPanels.get(i);
+            panel.setTitle(period.getStartAge() + "~" + period.getEndAge() + "歲");
+            panel.setPillar(period.getPillar(), period.getTenGods());
+        }
     }
 
     // ---------------------------------------------------------------- 儲存／載入
@@ -392,6 +495,7 @@ public final class BaziFrame extends JFrame {
             daySpinner.setValue(input.day());
             hourSpinner.setValue(input.hour());
             minuteSpinner.setValue(input.minute());
+            genderCombo.setSelectedItem(input.gender());
             calculate();
         } catch (IOException | IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, "載入失敗：" + ex.getMessage(),

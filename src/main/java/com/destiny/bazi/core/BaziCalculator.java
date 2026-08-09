@@ -1,5 +1,6 @@
 package com.destiny.bazi.core;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import java.util.Map;
  * <p>時柱：時支依出生時刻對應十二時辰，時干依日干以「五鼠遁」推算。</p>
  */
 public final class BaziCalculator {
+
+    public static final int DAYUN_PERIOD_COUNT = 8;
 
     // 節氣索引 -> 月支索引（寅=2 為正月起點）
     private static final Map<Integer, Integer> JIE_TO_MONTH_BRANCH = new LinkedHashMap<>();
@@ -79,6 +82,76 @@ public final class BaziCalculator {
 
         return new BaziResult(yearPillar, monthPillar, dayPillar, hourPillar, effectiveYear, earlyZiShift,
                 yearTenGods, monthTenGods, dayTenGods, hourTenGods);
+    }
+
+    /**
+     * 大運排盤：依「陽男陰女順排、陰男陽女逆排」判定方向，
+     * 以出生時刻與最近節氣的距離換算起運歲數（三日折一歲），
+     * 並從月柱起算，依方向逐期推算干支與十神。
+     */
+    public DaYunResult calculateDaYun(BaziResult baziResult, int year, int month, int day, int hour, int minute,
+                                       Gender gender) {
+        LocalDateTime birth = LocalDateTime.of(year, month, day, hour, minute);
+
+        boolean yearStemYang = baziResult.getYearPillar().getStemIndex() % 2 == 0;
+        boolean forward = (yearStemYang && gender == Gender.MALE) || (!yearStemYang && gender == Gender.FEMALE);
+
+        LocalDateTime boundary = findAdjacentJieTime(birth, forward);
+        long diffMinutes = Math.abs(Duration.between(birth, boundary).toMinutes());
+        double diffDays = diffMinutes / 1440.0;
+        double totalYearsExact = diffDays / 3.0;
+
+        int startYears = (int) totalYearsExact;
+        double monthsExact = (totalYearsExact - startYears) * 12;
+        int startMonths = (int) monthsExact;
+        int startDays = (int) Math.round((monthsExact - startMonths) * 30);
+        if (startDays >= 30) {
+            startDays -= 30;
+            startMonths += 1;
+        }
+        if (startMonths >= 12) {
+            startMonths -= 12;
+            startYears += 1;
+        }
+
+        int direction = forward ? 1 : -1;
+        int monthStemIdx = baziResult.getMonthPillar().getStemIndex();
+        int monthBranchIdx = baziResult.getMonthPillar().getBranchIndex();
+        int dayStemIdx = baziResult.getDayPillar().getStemIndex();
+
+        List<DaYunPeriod> periods = new ArrayList<>();
+        for (int k = 1; k <= DAYUN_PERIOD_COUNT; k++) {
+            int stemIdx = GanZhi.mod(monthStemIdx + direction * k, 10);
+            int branchIdx = GanZhi.mod(monthBranchIdx + direction * k, 12);
+            Pillar pillar = new Pillar(stemIdx, branchIdx);
+            int periodStartAge = startYears + (k - 1) * 10;
+            PillarTenGods tenGods = tenGodsFor(dayStemIdx, pillar, false);
+            periods.add(new DaYunPeriod(pillar, periodStartAge, tenGods));
+        }
+
+        return new DaYunResult(forward, startYears, startMonths, startDays, periods);
+    }
+
+    /** 找出出生時刻之前（after=false）或之後（after=true）最接近的節氣時刻。 */
+    private LocalDateTime findAdjacentJieTime(LocalDateTime birth, boolean after) {
+        int y = birth.getYear();
+        LocalDateTime best = null;
+
+        for (int yy = y - 1; yy <= y + 1; yy++) {
+            for (int jie : JIE_TO_MONTH_BRANCH.keySet()) {
+                LocalDateTime t = SolarTerm.getTime(yy, jie);
+                if (after) {
+                    if (t.isAfter(birth) && (best == null || t.isBefore(best))) {
+                        best = t;
+                    }
+                } else {
+                    if (!t.isAfter(birth) && (best == null || t.isAfter(best))) {
+                        best = t;
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     /** 計算單一柱的天干十神（日柱本身標示為「日主」）與地支藏干十神。 */
