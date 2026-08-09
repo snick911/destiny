@@ -132,6 +132,18 @@ public final class BaziCalculator {
         return new DaYunResult(forward, startYears, startMonths, startDays, periods);
     }
 
+    /**
+     * 流年排盤：依指定西元年份直接推算該年的年柱干支與十神
+     * （不再套用立春界線，因為呼叫端已明確指定所要查詢的流年）。
+     */
+    public LiuNianYear calculateLiuNian(int calendarYear, int dayStemIdx) {
+        int stemIdx = GanZhi.mod(calendarYear - 4, 10);
+        int branchIdx = GanZhi.mod(calendarYear - 4, 12);
+        Pillar pillar = new Pillar(stemIdx, branchIdx);
+        PillarTenGods tenGods = tenGodsFor(dayStemIdx, pillar, false);
+        return new LiuNianYear(calendarYear, pillar, tenGods);
+    }
+
     /** 找出出生時刻之前（after=false）或之後（after=true）最接近的節氣時刻。 */
     private LocalDateTime findAdjacentJieTime(LocalDateTime birth, boolean after) {
         int y = birth.getYear();

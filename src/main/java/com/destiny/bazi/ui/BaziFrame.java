@@ -5,6 +5,7 @@ import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.DaYunPeriod;
 import com.destiny.bazi.core.DaYunResult;
 import com.destiny.bazi.core.Gender;
+import com.destiny.bazi.core.LiuNianYear;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 
@@ -62,13 +63,25 @@ public final class BaziFrame extends JFrame {
     private final JLabel dayunTitleLabel = new JLabel("大運", SwingConstants.CENTER);
     private final JLabel dayunNoteLabel = new JLabel(" ", SwingConstants.CENTER);
 
+    private final JComboBox<String> dayunSelectCombo = new JComboBox<>();
+    private final JComboBox<String> liunianSelectCombo = new JComboBox<>();
+    private final PillarPanel selectedDaYunPanel = new PillarPanel("大運");
+    private final PillarPanel selectedLiuNianPanel = new PillarPanel("流年");
+    private final JLabel selectionSectionTitle = new JLabel("大運／流年查詢", SwingConstants.CENTER);
+    private boolean updatingCombos = false;
+
+    private List<DaYunPeriod> currentPeriods = new ArrayList<>();
+    private final List<Integer> currentLiuNianYears = new ArrayList<>();
+    private BaziResult currentResult;
+    private BirthInput currentInput;
+
     private final JLabel titleLabel = new JLabel("子平八字排盤", SwingConstants.CENTER);
     private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時、性別，推算四柱、十神與大運", SwingConstants.CENTER);
     private final JLabel inputSectionTitle = new JLabel("排盤輸入", SwingConstants.CENTER);
     private final JLabel fourPillarsSectionTitle = new JLabel("四柱", SwingConstants.CENTER);
     private final JLabel summarySectionTitle = new JLabel("命盤摘要", SwingConstants.CENTER);
-    private final List<JLabel> sectionTitleLabels =
-            List.of(inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, summarySectionTitle);
+    private final List<JLabel> sectionTitleLabels = List.of(
+            inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, selectionSectionTitle, summarySectionTitle);
     private final List<JLabel> inputLabels = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
@@ -95,6 +108,21 @@ public final class BaziFrame extends JFrame {
         genderCombo.setBackground(DarkTheme.BG_CARD);
         genderCombo.setForeground(DarkTheme.FG_PRIMARY);
         genderCombo.addActionListener(e -> calculate());
+
+        dayunSelectCombo.setBackground(DarkTheme.BG_CARD);
+        dayunSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
+        liunianSelectCombo.setBackground(DarkTheme.BG_CARD);
+        liunianSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
+        dayunSelectCombo.addActionListener(e -> {
+            if (!updatingCombos) {
+                onDaYunSelectionChanged();
+            }
+        });
+        liunianSelectCombo.addActionListener(e -> {
+            if (!updatingCombos) {
+                onLiuNianSelectionChanged();
+            }
+        });
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(buildMenuBar());
@@ -196,6 +224,8 @@ public final class BaziFrame extends JFrame {
         center.add(Box.createVerticalStrut(22));
         center.add(buildDaYunPanel());
         center.add(Box.createVerticalStrut(22));
+        center.add(buildSelectionPanel());
+        center.add(Box.createVerticalStrut(22));
         center.add(buildSummaryPanel());
 
         JScrollPane scrollPane = new JScrollPane(center);
@@ -203,7 +233,7 @@ public final class BaziFrame extends JFrame {
         scrollPane.setBackground(DarkTheme.BG_APP);
         scrollPane.getViewport().setBackground(DarkTheme.BG_APP);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setPreferredSize(new Dimension(780, 640));
+        scrollPane.setPreferredSize(new Dimension(780, 680));
         root.add(scrollPane, BorderLayout.CENTER);
 
         return root;
@@ -336,6 +366,39 @@ public final class BaziFrame extends JFrame {
         return panel;
     }
 
+    private JComponent buildSelectionPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        DarkTheme.styleCard(panel);
+
+        selectionSectionTitle.setForeground(DarkTheme.ACCENT);
+        panel.add(selectionSectionTitle, BorderLayout.NORTH);
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+
+        JPanel comboRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 6));
+        comboRow.setOpaque(false);
+        dayunSelectCombo.setPreferredSize(new Dimension(170, 30));
+        dayunSelectCombo.setMaximumSize(new Dimension(190, 30));
+        liunianSelectCombo.setPreferredSize(new Dimension(170, 30));
+        liunianSelectCombo.setMaximumSize(new Dimension(190, 30));
+        comboRow.add(labeledComponent("選擇大運", dayunSelectCombo));
+        comboRow.add(labeledComponent("選擇流年", liunianSelectCombo));
+
+        JPanel panelsRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        panelsRow.setOpaque(false);
+        panelsRow.add(selectedDaYunPanel);
+        panelsRow.add(selectedLiuNianPanel);
+
+        content.add(comboRow);
+        content.add(Box.createVerticalStrut(10));
+        content.add(panelsRow);
+
+        panel.add(content, BorderLayout.CENTER);
+        return panel;
+    }
+
     private JComponent buildSummaryPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -381,6 +444,8 @@ public final class BaziFrame extends JFrame {
             editor.setFont(editor.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         }
         genderCombo.setFont(genderCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        dayunSelectCombo.setFont(dayunSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        liunianSelectCombo.setFont(liunianSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
@@ -394,6 +459,8 @@ public final class BaziFrame extends JFrame {
         for (PillarPanel p : dayunPanels) {
             p.setFontScale(fontScale);
         }
+        selectedDaYunPanel.setFontScale(fontScale);
+        selectedLiuNianPanel.setFontScale(fontScale);
         revalidate();
         repaint();
     }
@@ -425,7 +492,12 @@ public final class BaziFrame extends JFrame {
         }
         BaziResult result = calculator.calculate(input.year(), input.month(), input.day(), input.hour(), input.minute());
         renderResult(result);
-        renderDaYun(result, input);
+        DaYunResult dayun = renderDaYun(result, input);
+
+        currentResult = result;
+        currentInput = input;
+        currentPeriods = dayun.getPeriods();
+        populateDaYunCombo();
     }
 
     private void renderResult(BaziResult result) {
@@ -450,7 +522,7 @@ public final class BaziFrame extends JFrame {
         noteLabel.setText(note.toString());
     }
 
-    private void renderDaYun(BaziResult result, BirthInput input) {
+    private DaYunResult renderDaYun(BaziResult result, BirthInput input) {
         DaYunResult dayun = calculator.calculateDaYun(result, input.year(), input.month(), input.day(),
                 input.hour(), input.minute(), input.gender());
 
@@ -467,6 +539,65 @@ public final class BaziFrame extends JFrame {
             panel.setTitle(period.getStartAge() + "~" + period.getEndAge() + "歲");
             panel.setPillar(period.getPillar(), period.getTenGods());
         }
+        return dayun;
+    }
+
+    // ------------------------------------------------------- 大運／流年選擇查詢
+
+    private void populateDaYunCombo() {
+        updatingCombos = true;
+        dayunSelectCombo.removeAllItems();
+        for (DaYunPeriod period : currentPeriods) {
+            dayunSelectCombo.addItem(period.getStartAge() + "~" + period.getEndAge() + "歲　"
+                    + period.getPillar().getGanZhi());
+        }
+        if (dayunSelectCombo.getItemCount() > 0) {
+            dayunSelectCombo.setSelectedIndex(0);
+        }
+        updatingCombos = false;
+        onDaYunSelectionChanged();
+    }
+
+    private void onDaYunSelectionChanged() {
+        int idx = dayunSelectCombo.getSelectedIndex();
+        if (idx < 0 || idx >= currentPeriods.size()) {
+            return;
+        }
+        DaYunPeriod period = currentPeriods.get(idx);
+        selectedDaYunPanel.setTitle("大運 " + period.getStartAge() + "~" + period.getEndAge() + "歲");
+        selectedDaYunPanel.setPillar(period.getPillar(), period.getTenGods());
+
+        populateLiuNianCombo(period);
+    }
+
+    private void populateLiuNianCombo(DaYunPeriod period) {
+        updatingCombos = true;
+        liunianSelectCombo.removeAllItems();
+        currentLiuNianYears.clear();
+        int dayStemIdx = currentResult.getDayPillar().getStemIndex();
+        for (int age = period.getStartAge(); age <= period.getEndAge(); age++) {
+            int calendarYear = currentInput.year() + age;
+            currentLiuNianYears.add(calendarYear);
+            LiuNianYear liuNian = calculator.calculateLiuNian(calendarYear, dayStemIdx);
+            liunianSelectCombo.addItem(calendarYear + "年（" + age + "歲）　" + liuNian.getPillar().getGanZhi());
+        }
+        if (liunianSelectCombo.getItemCount() > 0) {
+            liunianSelectCombo.setSelectedIndex(0);
+        }
+        updatingCombos = false;
+        onLiuNianSelectionChanged();
+    }
+
+    private void onLiuNianSelectionChanged() {
+        int idx = liunianSelectCombo.getSelectedIndex();
+        if (idx < 0 || idx >= currentLiuNianYears.size() || currentResult == null) {
+            return;
+        }
+        int calendarYear = currentLiuNianYears.get(idx);
+        int dayStemIdx = currentResult.getDayPillar().getStemIndex();
+        LiuNianYear liuNian = calculator.calculateLiuNian(calendarYear, dayStemIdx);
+        selectedLiuNianPanel.setTitle("流年 " + calendarYear + "年");
+        selectedLiuNianPanel.setPillar(liuNian.getPillar(), liuNian.getTenGods());
     }
 
     // ---------------------------------------------------------------- 儲存／載入
