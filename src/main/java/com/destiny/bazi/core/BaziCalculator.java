@@ -228,6 +228,39 @@ public final class BaziCalculator {
         return new FiveElementMass(mass);
     }
 
+    /** 十神統計：命盤四柱天干（日主本身不計）與地支藏干的十神出現次數。 */
+    public Map<String, Integer> calculateTenGodCounts(BaziResult result) {
+        return calculateTenGodCounts(result, List.of());
+    }
+
+    /** 十神統計（含大運／流年）：在命盤四柱之外，另計入所選大運柱與流年柱的十神。 */
+    public Map<String, Integer> calculateTenGodCountsWithLuck(BaziResult result, PillarTenGods daYunTenGods,
+                                                                PillarTenGods liuNianTenGods) {
+        return calculateTenGodCounts(result, List.of(daYunTenGods, liuNianTenGods));
+    }
+
+    private Map<String, Integer> calculateTenGodCounts(BaziResult result, List<PillarTenGods> extra) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (String god : TenGod.ALL) {
+            counts.put(god, 0);
+        }
+
+        List<PillarTenGods> all = new ArrayList<>(List.of(
+                result.getYearTenGods(), result.getMonthTenGods(), result.getDayTenGods(), result.getHourTenGods()));
+        all.addAll(extra);
+
+        for (PillarTenGods pillarTenGods : all) {
+            if (!pillarTenGods.getStemTenGod().equals(TenGod.RI_ZHU)) {
+                counts.merge(pillarTenGods.getStemTenGod(), 1, Integer::sum);
+            }
+            for (HiddenStemGod hiddenGod : pillarTenGods.getBranchHiddenGods()) {
+                counts.merge(hiddenGod.getTenGod(), 1, Integer::sum);
+            }
+        }
+
+        return counts;
+    }
+
     /** 地支藏干依藏干數的權重分配：單藏 1；雙藏 2/3、1/3；三藏 2/4、1/4、1/4。 */
     private double[] hiddenStemRatios(int count) {
         return switch (count) {

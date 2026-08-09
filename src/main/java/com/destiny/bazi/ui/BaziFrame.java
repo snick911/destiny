@@ -77,6 +77,7 @@ public final class BaziFrame extends JFrame {
     private final JLabel selectionSectionTitle = new JLabel("大運／流年／流月查詢", SwingConstants.CENTER);
     private final JLabel luckFiveElementMassTitle = new JLabel("五行質量（命盤＋大運＋流年）", SwingConstants.CENTER);
     private final FiveElementBarChart luckFiveElementMassChart = new FiveElementBarChart();
+    private final TenGodStatsPanel luckTenGodStats = new TenGodStatsPanel();
     private boolean updatingCombos = false;
 
     private List<DaYunPeriod> currentPeriods = new ArrayList<>();
@@ -100,6 +101,7 @@ public final class BaziFrame extends JFrame {
     private final JLabel monthOrderLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel fiveElementMassTitle = new JLabel("五行質量（基本分＋月令加分）", SwingConstants.CENTER);
     private final FiveElementBarChart fiveElementMassChart = new FiveElementBarChart();
+    private final TenGodStatsPanel fiveElementTenGodStats = new TenGodStatsPanel();
 
     private JPanel exportPanel;
 
@@ -425,7 +427,14 @@ public final class BaziFrame extends JFrame {
 
         luckFiveElementMassTitle.setForeground(DarkTheme.FG_SECONDARY);
         luckFiveElementMassTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        luckFiveElementMassChart.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel luckMassRow = new JPanel();
+        luckMassRow.setOpaque(false);
+        luckMassRow.setLayout(new BoxLayout(luckMassRow, BoxLayout.X_AXIS));
+        luckMassRow.add(luckFiveElementMassChart);
+        luckMassRow.add(Box.createHorizontalStrut(24));
+        luckMassRow.add(luckTenGodStats);
+        luckMassRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         content.add(comboRow);
         content.add(Box.createVerticalStrut(10));
@@ -433,7 +442,7 @@ public final class BaziFrame extends JFrame {
         content.add(Box.createVerticalStrut(10));
         content.add(luckFiveElementMassTitle);
         content.add(Box.createVerticalStrut(4));
-        content.add(luckFiveElementMassChart);
+        content.add(luckMassRow);
 
         panel.add(content, BorderLayout.CENTER);
         return panel;
@@ -458,7 +467,14 @@ public final class BaziFrame extends JFrame {
 
         fiveElementMassTitle.setForeground(DarkTheme.FG_SECONDARY);
         fiveElementMassTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        fiveElementMassChart.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel massRow = new JPanel();
+        massRow.setOpaque(false);
+        massRow.setLayout(new BoxLayout(massRow, BoxLayout.X_AXIS));
+        massRow.add(fiveElementMassChart);
+        massRow.add(Box.createHorizontalStrut(24));
+        massRow.add(fiveElementTenGodStats);
+        massRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         panel.add(summarySectionTitle);
         panel.add(Box.createVerticalStrut(8));
@@ -470,7 +486,7 @@ public final class BaziFrame extends JFrame {
         panel.add(Box.createVerticalStrut(8));
         panel.add(fiveElementMassTitle);
         panel.add(Box.createVerticalStrut(4));
-        panel.add(fiveElementMassChart);
+        panel.add(massRow);
         return panel;
     }
 
@@ -508,6 +524,8 @@ public final class BaziFrame extends JFrame {
         luckFiveElementMassTitle.setFont(luckFiveElementMassTitle.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         fiveElementMassChart.setFontScale(fontScale);
         luckFiveElementMassChart.setFontScale(fontScale);
+        fiveElementTenGodStats.setFontScale(fontScale);
+        luckTenGodStats.setFontScale(fontScale);
         dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         for (JLabel l : sectionTitleLabels) {
             l.setFont(l.getFont().deriveFont(Font.BOLD, (float) (SECTION_TITLE_SIZE * fontScale)));
@@ -593,6 +611,7 @@ public final class BaziFrame extends JFrame {
 
         FiveElementMass mass = calculator.calculateFiveElementMass(result);
         fiveElementMassChart.setMass(mass);
+        fiveElementTenGodStats.setCounts(calculator.calculateTenGodCounts(result));
     }
 
     private DaYunResult renderDaYun(BaziResult result, BirthInput input) {
@@ -678,6 +697,8 @@ public final class BaziFrame extends JFrame {
         FiveElementMass luckMass = calculator.calculateFiveElementMassWithLuck(
                 currentResult, period.getPillar(), liuNian.getPillar());
         luckFiveElementMassChart.setMass(luckMass);
+        luckTenGodStats.setCounts(calculator.calculateTenGodCountsWithLuck(
+                currentResult, period.getTenGods(), liuNian.getTenGods()));
 
         populateLiuYueCombo(calendarYear);
     }
