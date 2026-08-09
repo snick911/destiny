@@ -13,6 +13,12 @@ import java.awt.*;
  */
 public final class PillarPanel extends JPanel {
 
+    private static final float TITLE_SIZE = 16f;
+    private static final float TEN_GOD_SIZE = 13f;
+    private static final float BIG_CHAR_SIZE = 46f;
+    private static final float ELEMENT_SIZE = 12f;
+    private static final float HIDDEN_SIZE = 11f;
+
     private final JLabel titleLabel;
     private final JLabel stemTenGodLabel;
     private final JLabel stemLabel;
@@ -27,22 +33,22 @@ public final class PillarPanel extends JPanel {
 
         titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(DarkTheme.FG_SECONDARY);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, TITLE_SIZE));
 
         stemTenGodLabel = new JLabel(" ", SwingConstants.CENTER);
-        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, 13f));
+        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, TEN_GOD_SIZE));
         stemTenGodLabel.setForeground(DarkTheme.ACCENT);
 
         stemLabel = bigCharLabel();
         branchLabel = bigCharLabel();
 
         stemElementLabel = new JLabel(" ", SwingConstants.CENTER);
-        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont(12f));
+        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont(ELEMENT_SIZE));
         branchElementLabel = new JLabel(" ", SwingConstants.CENTER);
-        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont(12f));
+        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont(ELEMENT_SIZE));
 
         hiddenGodsLabel = new JLabel(" ", SwingConstants.CENTER);
-        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont(11f));
+        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont(HIDDEN_SIZE));
         hiddenGodsLabel.setForeground(DarkTheme.FG_SECONDARY);
 
         GridBagConstraints gc = new GridBagConstraints();
@@ -74,8 +80,19 @@ public final class PillarPanel extends JPanel {
 
     private JLabel bigCharLabel() {
         JLabel label = new JLabel(" ", SwingConstants.CENTER);
-        label.setFont(label.getFont().deriveFont(Font.BOLD, 46f));
+        label.setFont(label.getFont().deriveFont(Font.BOLD, BIG_CHAR_SIZE));
         return label;
+    }
+
+    /** 依比例縮放本卡片內所有文字的字型大小。scale=1.0 為預設大小。 */
+    public void setFontScale(double scale) {
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, (float) (TITLE_SIZE * scale)));
+        stemTenGodLabel.setFont(stemTenGodLabel.getFont().deriveFont(Font.BOLD, (float) (TEN_GOD_SIZE * scale)));
+        stemLabel.setFont(stemLabel.getFont().deriveFont(Font.BOLD, (float) (BIG_CHAR_SIZE * scale)));
+        branchLabel.setFont(branchLabel.getFont().deriveFont(Font.BOLD, (float) (BIG_CHAR_SIZE * scale)));
+        stemElementLabel.setFont(stemElementLabel.getFont().deriveFont((float) (ELEMENT_SIZE * scale)));
+        branchElementLabel.setFont(branchElementLabel.getFont().deriveFont((float) (ELEMENT_SIZE * scale)));
+        hiddenGodsLabel.setFont(hiddenGodsLabel.getFont().deriveFont((float) (HIDDEN_SIZE * scale)));
     }
 
     public void setPillar(Pillar pillar, PillarTenGods tenGods) {

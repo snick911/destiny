@@ -34,6 +34,16 @@ java -cp out com.destiny.bazi.Main
   時刻誤差通常在數十分鐘內，足以判斷排盤所需的年柱與月柱交界。
 - 所有輸入時間預設視為當地（北京時間 UTC+8）出生時刻。
 
+## 選單功能
+
+- **檔案 → 儲存結果...**（Ctrl+S）：將目前輸入的出生年月日時分與排盤結果
+  存成 `.bazi` 純文字檔（UTF-8）。
+- **檔案 → 載入結果...**（Ctrl+O）：讀取 `.bazi` 檔，還原出生年月日時分並
+  依目前排盤邏輯重新計算（確保結果與程式版本一致）。
+- **顯示 → 放大字體 / 縮小字體**（Ctrl+= / Ctrl+-）：等比例調整標題、輸入
+  欄位與四柱卡片文字大小；**重設字體大小**（Ctrl+0）恢復預設。
+- **說明 → 關於**：顯示排盤規則簡介。
+
 ## 專案結構
 
 ```
@@ -49,8 +59,11 @@ src/main/java/com/destiny/bazi/
 │   ├── PillarTenGods.java     # 單柱十神資訊（天干＋地支藏干）
 │   ├── BaziCalculator.java    # 排盤核心邏輯
 │   └── BaziResult.java        # 排盤結果
+├── io/
+│   ├── BirthInput.java         # 出生年月日時分資料
+│   └── BaziFileIO.java         # 排盤結果儲存／載入
 └── ui/
-    ├── DarkTheme.java          # 護眼暗色主題配色
-    ├── PillarPanel.java        # 單柱顯示卡片
-    └── BaziFrame.java          # 主視窗
+    ├── DarkTheme.java          # 護眼暗色主題配色（含選單樣式）
+    ├── PillarPanel.java        # 單柱顯示卡片（支援字體縮放）
+    └── BaziFrame.java          # 主視窗（選單列、儲存載入、字體縮放）
 ```

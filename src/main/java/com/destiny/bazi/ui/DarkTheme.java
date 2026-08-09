@@ -66,6 +66,38 @@ public final class DarkTheme {
         UIManager.put("ToolTip.background", BG_CARD);
         UIManager.put("ToolTip.foreground", FG_PRIMARY);
         UIManager.put("Separator.foreground", BORDER);
+
+        UIManager.put("MenuBar.background", BG_PANEL);
+        UIManager.put("MenuBar.foreground", FG_PRIMARY);
+        UIManager.put("Menu.background", BG_PANEL);
+        UIManager.put("Menu.foreground", FG_PRIMARY);
+        UIManager.put("Menu.selectionBackground", ACCENT_DIM);
+        UIManager.put("Menu.selectionForeground", FG_PRIMARY);
+        UIManager.put("MenuItem.background", BG_CARD);
+        UIManager.put("MenuItem.foreground", FG_PRIMARY);
+        UIManager.put("MenuItem.selectionBackground", ACCENT_DIM);
+        UIManager.put("MenuItem.selectionForeground", FG_PRIMARY);
+        UIManager.put("MenuItem.acceleratorForeground", FG_SECONDARY);
+        UIManager.put("PopupMenu.background", BG_CARD);
+        UIManager.put("PopupMenu.foreground", FG_PRIMARY);
+        UIManager.put("FileChooser.background", BG_PANEL);
+        UIManager.put("FileChooser.foreground", FG_PRIMARY);
+    }
+
+    public static void styleMenuBar(JMenuBar menuBar) {
+        menuBar.setBackground(BG_PANEL);
+        menuBar.setForeground(FG_PRIMARY);
+        menuBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER));
+    }
+
+    public static void styleMenu(JMenu menu) {
+        menu.setBackground(BG_PANEL);
+        menu.setForeground(FG_PRIMARY);
+    }
+
+    public static void styleMenuItem(JMenuItem item) {
+        item.setBackground(BG_CARD);
+        item.setForeground(FG_PRIMARY);
     }
 
     public static void styleAccentButton(JButton button) {

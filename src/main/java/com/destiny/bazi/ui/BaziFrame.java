@@ -2,18 +2,41 @@ package com.destiny.bazi.ui;
 
 import com.destiny.bazi.core.BaziCalculator;
 import com.destiny.bazi.core.BaziResult;
+import com.destiny.bazi.io.BaziFileIO;
+import com.destiny.bazi.io.BirthInput;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.Year;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 /**
- * 子平八字排盤主視窗：輸入西元年月日時，計算並顯示四柱。
+ * 子平八字排盤主視窗：輸入西元年月日時，計算並顯示四柱與十神；
+ * 並提供選單列以儲存／載入排盤結果，以及調整畫面字體大小。
  */
 public final class BaziFrame extends JFrame {
+
+    private static final float TITLE_SIZE = 26f;
+    private static final float SUBTITLE_SIZE = 13f;
+    private static final float INPUT_LABEL_SIZE = 13f;
+    private static final float SPINNER_SIZE = 14f;
+    private static final float BUTTON_SIZE = 15f;
+    private static final float SUMMARY_SIZE = 14f;
+    private static final float NOTE_SIZE = 12f;
+
+    private static final double FONT_SCALE_MIN = 0.7;
+    private static final double FONT_SCALE_MAX = 1.8;
+    private static final double FONT_SCALE_STEP = 0.1;
 
     private final BaziCalculator calculator = new BaziCalculator();
 
@@ -22,14 +45,23 @@ public final class BaziFrame extends JFrame {
     private final JSpinner daySpinner;
     private final JSpinner hourSpinner;
     private final JSpinner minuteSpinner;
+    private final JSpinner[] spinners;
 
     private final PillarPanel yearPanel = new PillarPanel("年柱");
     private final PillarPanel monthPanel = new PillarPanel("月柱");
     private final PillarPanel dayPanel = new PillarPanel("日柱");
     private final PillarPanel hourPanel = new PillarPanel("時柱");
+    private final PillarPanel[] pillarPanels = {yearPanel, monthPanel, dayPanel, hourPanel};
+
+    private final JLabel titleLabel = new JLabel("子平八字排盤", SwingConstants.CENTER);
+    private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時，推算年柱、月柱、日柱、時柱", SwingConstants.CENTER);
+    private final List<JLabel> inputLabels = new ArrayList<>();
+    private final JButton calcButton = new JButton("排盤");
 
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
+
+    private double fontScale = 1.0;
 
     public BaziFrame() {
         super("子平八字排盤");
@@ -40,20 +72,94 @@ public final class BaziFrame extends JFrame {
         daySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 31, 1));
         hourSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 23, 1));
         minuteSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
-        for (JSpinner sp : new JSpinner[]{yearSpinner, monthSpinner, daySpinner, hourSpinner, minuteSpinner}) {
+        spinners = new JSpinner[]{yearSpinner, monthSpinner, daySpinner, hourSpinner, minuteSpinner};
+        for (JSpinner sp : spinners) {
             sp.setEditor(new JSpinner.NumberEditor(sp, "#"));
             sp.getEditor().getComponent(0).setBackground(DarkTheme.BG_CARD);
             sp.getEditor().getComponent(0).setForeground(DarkTheme.FG_PRIMARY);
         }
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setJMenuBar(buildMenuBar());
         setContentPane(buildContent());
-        setMinimumSize(new Dimension(760, 520));
+        setMinimumSize(new Dimension(760, 560));
         pack();
         setLocationRelativeTo(null);
 
+        applyFontScale();
         calculate();
     }
+
+    // ---------------------------------------------------------------- 選單列
+
+    private JMenuBar buildMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+        DarkTheme.styleMenuBar(menuBar);
+
+        menuBar.add(buildFileMenu());
+        menuBar.add(buildViewMenu());
+        menuBar.add(buildHelpMenu());
+        return menuBar;
+    }
+
+    private JMenu buildFileMenu() {
+        JMenu menu = new JMenu("檔案");
+        DarkTheme.styleMenu(menu);
+
+        JMenuItem save = menuItem("儲存結果...", KeyEvent.VK_S, e -> saveResult());
+        JMenuItem load = menuItem("載入結果...", KeyEvent.VK_O, e -> loadResult());
+        JMenuItem exit = menuItem("結束", -1, e -> dispose());
+
+        menu.add(save);
+        menu.add(load);
+        menu.addSeparator();
+        menu.add(exit);
+        return menu;
+    }
+
+    private JMenu buildViewMenu() {
+        JMenu menu = new JMenu("顯示");
+        DarkTheme.styleMenu(menu);
+
+        JMenuItem zoomIn = menuItem("放大字體", KeyEvent.VK_EQUALS, e -> adjustFontScale(FONT_SCALE_STEP));
+        JMenuItem zoomOut = menuItem("縮小字體", KeyEvent.VK_MINUS, e -> adjustFontScale(-FONT_SCALE_STEP));
+        JMenuItem zoomReset = menuItem("重設字體大小", KeyEvent.VK_0, e -> resetFontScale());
+
+        menu.add(zoomIn);
+        menu.add(zoomOut);
+        menu.addSeparator();
+        menu.add(zoomReset);
+        return menu;
+    }
+
+    private JMenu buildHelpMenu() {
+        JMenu menu = new JMenu("說明");
+        DarkTheme.styleMenu(menu);
+
+        JMenuItem about = menuItem("關於", -1, e -> showAbout());
+        menu.add(about);
+        return menu;
+    }
+
+    private JMenuItem menuItem(String text, int acceleratorKey, java.awt.event.ActionListener listener) {
+        JMenuItem item = new JMenuItem(text);
+        DarkTheme.styleMenuItem(item);
+        if (acceleratorKey != -1) {
+            item.setAccelerator(KeyStroke.getKeyStroke(acceleratorKey, InputEvent.CTRL_DOWN_MASK));
+        }
+        item.addActionListener(listener);
+        return item;
+    }
+
+    private void showAbout() {
+        JOptionPane.showMessageDialog(this,
+                "子平八字排盤\n\n"
+                        + "年柱以立春為界、月柱以十二節劃分、日柱以儒略日數推算、\n"
+                        + "時柱以五鼠遁推算，並附十神與地支藏干十神。",
+                "關於", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    // ---------------------------------------------------------------- 版面
 
     private JComponent buildContent() {
         JPanel root = new JPanel(new BorderLayout(0, 18));
@@ -77,19 +183,15 @@ public final class BaziFrame extends JFrame {
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        JLabel title = new JLabel("子平八字排盤");
-        title.setForeground(DarkTheme.ACCENT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 26f));
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setForeground(DarkTheme.ACCENT);
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel subtitle = new JLabel("輸入出生年、月、日、時，推算年柱、月柱、日柱、時柱");
-        subtitle.setForeground(DarkTheme.FG_SECONDARY);
-        subtitle.setFont(subtitle.getFont().deriveFont(13f));
-        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        subtitleLabel.setForeground(DarkTheme.FG_SECONDARY);
+        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        panel.add(title);
+        panel.add(titleLabel);
         panel.add(Box.createVerticalStrut(6));
-        panel.add(subtitle);
+        panel.add(subtitleLabel);
         return panel;
     }
 
@@ -103,7 +205,6 @@ public final class BaziFrame extends JFrame {
         panel.add(labeledSpinner("時", hourSpinner));
         panel.add(labeledSpinner("分", minuteSpinner));
 
-        JButton calcButton = new JButton("排盤");
         DarkTheme.styleAccentButton(calcButton);
         calcButton.addActionListener(e -> calculate());
         panel.add(calcButton);
@@ -119,6 +220,7 @@ public final class BaziFrame extends JFrame {
         JLabel l = new JLabel(label, SwingConstants.CENTER);
         l.setForeground(DarkTheme.FG_SECONDARY);
         l.setAlignmentX(Component.CENTER_ALIGNMENT);
+        inputLabels.add(l);
 
         spinner.setPreferredSize(new Dimension(70, 30));
         spinner.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -133,10 +235,9 @@ public final class BaziFrame extends JFrame {
     private JComponent buildOutputPanel() {
         JPanel panel = new JPanel(new GridLayout(1, 4, 14, 0));
         panel.setOpaque(false);
-        panel.add(yearPanel);
-        panel.add(monthPanel);
-        panel.add(dayPanel);
-        panel.add(hourPanel);
+        for (PillarPanel p : pillarPanels) {
+            panel.add(p);
+        }
         return panel;
     }
 
@@ -146,11 +247,9 @@ public final class BaziFrame extends JFrame {
         DarkTheme.styleCard(panel);
 
         summaryLabel.setForeground(DarkTheme.FG_PRIMARY);
-        summaryLabel.setFont(summaryLabel.getFont().deriveFont(14f));
         summaryLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         noteLabel.setForeground(DarkTheme.FG_SECONDARY);
-        noteLabel.setFont(noteLabel.getFont().deriveFont(12f));
         noteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         panel.add(summaryLabel);
@@ -159,7 +258,41 @@ public final class BaziFrame extends JFrame {
         return panel;
     }
 
-    private void calculate() {
+    // ---------------------------------------------------------------- 字體縮放
+
+    private void adjustFontScale(double delta) {
+        fontScale = Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, fontScale + delta));
+        applyFontScale();
+    }
+
+    private void resetFontScale() {
+        fontScale = 1.0;
+        applyFontScale();
+    }
+
+    private void applyFontScale() {
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, (float) (TITLE_SIZE * fontScale)));
+        subtitleLabel.setFont(subtitleLabel.getFont().deriveFont((float) (SUBTITLE_SIZE * fontScale)));
+        for (JLabel l : inputLabels) {
+            l.setFont(l.getFont().deriveFont((float) (INPUT_LABEL_SIZE * fontScale)));
+        }
+        for (JSpinner sp : spinners) {
+            Component editor = sp.getEditor().getComponent(0);
+            editor.setFont(editor.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        }
+        calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
+        summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
+        noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        for (PillarPanel p : pillarPanels) {
+            p.setFontScale(fontScale);
+        }
+        revalidate();
+        repaint();
+    }
+
+    // ---------------------------------------------------------------- 排盤
+
+    private BirthInput readInput() {
         int year = (int) yearSpinner.getValue();
         int month = (int) monthSpinner.getValue();
         int day = (int) daySpinner.getValue();
@@ -171,11 +304,21 @@ public final class BaziFrame extends JFrame {
         } catch (DateTimeException ex) {
             JOptionPane.showMessageDialog(this, "日期不存在，請確認「日」是否符合該月份天數。",
                     "輸入錯誤", JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        return new BirthInput(year, month, day, hour, minute);
+    }
+
+    private void calculate() {
+        BirthInput input = readInput();
+        if (input == null) {
             return;
         }
+        BaziResult result = calculator.calculate(input.year(), input.month(), input.day(), input.hour(), input.minute());
+        renderResult(result);
+    }
 
-        BaziResult result = calculator.calculate(year, month, day, hour, minute);
-
+    private void renderResult(BaziResult result) {
         yearPanel.setPillar(result.getYearPillar(), result.getYearTenGods());
         monthPanel.setPillar(result.getMonthPillar(), result.getMonthTenGods());
         dayPanel.setPillar(result.getDayPillar(), result.getDayTenGods());
@@ -195,5 +338,64 @@ public final class BaziFrame extends JFrame {
             note.append("　23 時屬「晚子時」，日柱已順延至次日推算。");
         }
         noteLabel.setText(note.toString());
+    }
+
+    // ---------------------------------------------------------------- 儲存／載入
+
+    private void saveResult() {
+        BirthInput input = readInput();
+        if (input == null) {
+            return;
+        }
+        BaziResult result = calculator.calculate(input.year(), input.month(), input.day(), input.hour(), input.minute());
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("八字檔案 (*.bazi)", "bazi"));
+        chooser.setSelectedFile(new File(String.format("八字_%04d%02d%02d.bazi",
+                input.year(), input.month(), input.day())));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase(Locale.ROOT).endsWith(".bazi")) {
+            file = new File(file.getParentFile(), file.getName() + ".bazi");
+        }
+        if (file.exists() && JOptionPane.showConfirmDialog(this,
+                file.getName() + " 已存在，是否覆蓋？", "確認覆蓋",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            BaziFileIO.save(file, input, result);
+            JOptionPane.showMessageDialog(this, "已儲存至：" + file.getName(),
+                    "儲存成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "儲存失敗：" + ex.getMessage(),
+                    "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void loadResult() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("八字檔案 (*.bazi)", "bazi"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File file = chooser.getSelectedFile();
+        try {
+            BirthInput input = BaziFileIO.load(file);
+            yearSpinner.setValue(input.year());
+            monthSpinner.setValue(input.month());
+            daySpinner.setValue(input.day());
+            hourSpinner.setValue(input.hour());
+            minuteSpinner.setValue(input.minute());
+            calculate();
+        } catch (IOException | IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, "載入失敗：" + ex.getMessage(),
+                    "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
