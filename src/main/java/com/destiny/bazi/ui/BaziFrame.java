@@ -10,12 +10,14 @@ import com.destiny.bazi.core.LiuYueMonth;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.time.DateTimeException;
@@ -92,6 +94,8 @@ public final class BaziFrame extends JFrame {
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
 
+    private JPanel exportPanel;
+
     private double fontScale = 1.0;
 
     public BaziFrame() {
@@ -164,10 +168,13 @@ public final class BaziFrame extends JFrame {
 
         JMenuItem save = menuItem("儲存結果...", KeyEvent.VK_S, e -> saveResult());
         JMenuItem load = menuItem("載入結果...", KeyEvent.VK_O, e -> loadResult());
+        JMenuItem exportImage = menuItem("匯出圖片...", KeyEvent.VK_E, e -> exportImage());
         JMenuItem exit = menuItem("結束", -1, e -> dispose());
 
         menu.add(save);
         menu.add(load);
+        menu.addSeparator();
+        menu.add(exportImage);
         menu.addSeparator();
         menu.add(exit);
         return menu;
@@ -240,6 +247,7 @@ public final class BaziFrame extends JFrame {
         center.add(buildSelectionPanel());
         center.add(Box.createVerticalStrut(22));
         center.add(buildSummaryPanel());
+        exportPanel = center;
 
         JScrollPane scrollPane = new JScrollPane(center);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
@@ -646,6 +654,60 @@ public final class BaziFrame extends JFrame {
         LiuYueMonth liuYue = calculator.calculateLiuYue(currentLiuYueYear, idx, dayStemIdx);
         selectedLiuYuePanel.setTitle("流月 " + currentLiuYueYear + "年" + liuYue.getMonthName());
         selectedLiuYuePanel.setPillar(liuYue.getPillar(), liuYue.getTenGods());
+    }
+
+    // ---------------------------------------------------------------- 匯出圖片
+
+    private void exportImage() {
+        if (exportPanel == null) {
+            return;
+        }
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new FileNameExtensionFilter("PNG 圖片 (*.png)", "png"));
+        chooser.setSelectedFile(new File(String.format("八字_%04d%02d%02d.png",
+                (int) yearSpinner.getValue(), (int) monthSpinner.getValue(), (int) daySpinner.getValue())));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase(Locale.ROOT).endsWith(".png")) {
+            file = new File(file.getParentFile(), file.getName() + ".png");
+        }
+        if (file.exists() && JOptionPane.showConfirmDialog(this,
+                file.getName() + " 已存在，是否覆蓋？", "確認覆蓋",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // 依內容實際所需大小繪製，不受目前視窗大小或捲動位置影響。
+        Dimension originalSize = exportPanel.getSize();
+        Dimension targetSize = exportPanel.getPreferredSize();
+
+        BufferedImage image = new BufferedImage(targetSize.width, targetSize.height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = image.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setColor(DarkTheme.BG_APP);
+        g2.fillRect(0, 0, targetSize.width, targetSize.height);
+
+        exportPanel.setSize(targetSize);
+        exportPanel.validate();
+        exportPanel.printAll(g2);
+        g2.dispose();
+
+        exportPanel.setSize(originalSize);
+        exportPanel.validate();
+
+        try {
+            ImageIO.write(image, "png", file);
+            JOptionPane.showMessageDialog(this, "已匯出至：" + file.getName(),
+                    "匯出成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "匯出失敗：" + ex.getMessage(),
+                    "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // ---------------------------------------------------------------- 儲存／載入
