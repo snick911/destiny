@@ -7,6 +7,7 @@ import com.destiny.bazi.core.DaYunResult;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.core.LiuNianYear;
 import com.destiny.bazi.core.LiuYueMonth;
+import com.destiny.bazi.core.MonthOrder;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 
@@ -93,6 +94,7 @@ public final class BaziFrame extends JFrame {
 
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel monthOrderLabel = new JLabel(" ", SwingConstants.CENTER);
 
     private JPanel exportPanel;
 
@@ -438,11 +440,16 @@ public final class BaziFrame extends JFrame {
         noteLabel.setForeground(DarkTheme.FG_SECONDARY);
         noteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        monthOrderLabel.setForeground(DarkTheme.FG_SECONDARY);
+        monthOrderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         panel.add(summarySectionTitle);
         panel.add(Box.createVerticalStrut(8));
         panel.add(summaryLabel);
         panel.add(Box.createVerticalStrut(6));
         panel.add(noteLabel);
+        panel.add(Box.createVerticalStrut(4));
+        panel.add(monthOrderLabel);
         return panel;
     }
 
@@ -475,6 +482,7 @@ public final class BaziFrame extends JFrame {
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        monthOrderLabel.setFont(monthOrderLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         for (JLabel l : sectionTitleLabels) {
             l.setFont(l.getFont().deriveFont(Font.BOLD, (float) (SECTION_TITLE_SIZE * fontScale)));
@@ -547,6 +555,16 @@ public final class BaziFrame extends JFrame {
             note.append("　23 時屬「晚子時」，日柱已順延至次日推算。");
         }
         noteLabel.setText(note.toString());
+
+        MonthOrder mo = result.getMonthOrder();
+        monthOrderLabel.setText(String.format(
+                "月令：%s（%s月%s：%s%s當令，入節第 %d 天）",
+                mo.getElement(),
+                result.getMonthPillar().getBranch(),
+                mo.getPhase(),
+                mo.getStem(),
+                mo.getElement(),
+                mo.getDayOfMonth()));
     }
 
     private DaYunResult renderDaYun(BaziResult result, BirthInput input) {

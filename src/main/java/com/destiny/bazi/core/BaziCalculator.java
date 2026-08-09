@@ -22,6 +22,13 @@ public final class BaziCalculator {
 
     public static final int DAYUN_PERIOD_COUNT = 8;
 
+    private static final int GRAVE_YUQI_DAYS = 5;
+    private static final int GRAVE_ZHONGQI_DAYS = 9;
+
+    /** 節氣命中結果：節氣索引與其發生時刻。 */
+    private record JieHit(int jieIndex, LocalDateTime time) {
+    }
+
     // 節氣索引 -> 月支索引（寅=2 為正月起點）
     private static final Map<Integer, Integer> JIE_TO_MONTH_BRANCH = new LinkedHashMap<>();
 
@@ -51,11 +58,15 @@ public final class BaziCalculator {
         Pillar yearPillar = new Pillar(yearStemIdx, yearBranchIdx);
 
         // ---- 月柱：尋找出生時刻所屬的節氣區間 ----
-        int monthBranchIdx = findMonthBranch(birth);
+        JieHit monthJieHit = findCurrentJieHit(birth);
+        int monthBranchIdx = JIE_TO_MONTH_BRANCH.get(monthJieHit.jieIndex());
         int yinMonthStemIdx = GanZhi.mod((yearStemIdx % 5) * 2 + 2, 10);
         int stepsFromYin = GanZhi.mod(monthBranchIdx - 2, 12);
         int monthStemIdx = GanZhi.mod(yinMonthStemIdx + stepsFromYin, 10);
         Pillar monthPillar = new Pillar(monthStemIdx, monthBranchIdx);
+
+        // ---- 月令：辰戌丑未依入節天數分餘氣／中氣／本氣，其餘地支直接以主氣為月令 ----
+        MonthOrder monthOrder = resolveMonthOrder(birth, monthJieHit.time(), monthBranchIdx);
 
         // ---- 日柱：儒略日數對 60 取餘；23 時後歸入次日（晚子時） ----
         boolean earlyZiShift = hour == 23;
@@ -81,7 +92,7 @@ public final class BaziCalculator {
         PillarTenGods hourTenGods = tenGodsFor(dayStemIdx, hourPillar, false);
 
         return new BaziResult(yearPillar, monthPillar, dayPillar, hourPillar, effectiveYear, earlyZiShift,
-                yearTenGods, monthTenGods, dayTenGods, hourTenGods);
+                yearTenGods, monthTenGods, dayTenGods, hourTenGods, monthOrder);
     }
 
     /**
@@ -199,22 +210,61 @@ public final class BaziCalculator {
         return new PillarTenGods(stemTenGod, hiddenGods);
     }
 
-    /** 找出出生時刻所在的「節」區間，回傳對應的月支索引。 */
-    private int findMonthBranch(LocalDateTime birth) {
+    /** 找出出生時刻所在的「節」區間（節氣索引與交節時刻）。 */
+    private JieHit findCurrentJieHit(LocalDateTime birth) {
         int y = birth.getYear();
-        LocalDateTime best = null;
-        int bestJie = SolarTerm.XIAOHAN;
+        JieHit best = null;
 
         for (int yy = y - 1; yy <= y + 1; yy++) {
             for (int jie : JIE_TO_MONTH_BRANCH.keySet()) {
                 LocalDateTime t = SolarTerm.getTime(yy, jie);
-                if (!t.isAfter(birth) && (best == null || t.isAfter(best))) {
-                    best = t;
-                    bestJie = jie;
+                if (!t.isAfter(birth) && (best == null || t.isAfter(best.time()))) {
+                    best = new JieHit(jie, t);
                 }
             }
         }
-        return JIE_TO_MONTH_BRANCH.get(bestJie);
+        return best;
+    }
+
+    /**
+     * 月令判定：辰戌丑未（四墓庫月）依入節天數分三階段——前 5 天為上個節氣
+     * 殘留的餘氣當令，中間 9 天為該支所藏墓庫之氣（中氣）當令，之後才是
+     * 純粹的本氣（戊／己土）當令；其餘地支不分階段，直接以該支本氣為月令。
+     */
+    private MonthOrder resolveMonthOrder(LocalDateTime birth, LocalDateTime monthStart, int monthBranchIdx) {
+        double daysIntoMonth = Duration.between(monthStart, birth).toMinutes() / 1440.0;
+        long dayOrdinal = (long) Math.floor(daysIntoMonth) + 1;
+
+        int[] gravePhases = gravePhaseStems(monthBranchIdx);
+        int stemIdx;
+        String phase;
+        if (gravePhases != null) {
+            if (daysIntoMonth < GRAVE_YUQI_DAYS) {
+                stemIdx = gravePhases[0];
+                phase = "餘氣";
+            } else if (daysIntoMonth < GRAVE_YUQI_DAYS + GRAVE_ZHONGQI_DAYS) {
+                stemIdx = gravePhases[1];
+                phase = "中氣";
+            } else {
+                stemIdx = gravePhases[2];
+                phase = "本氣";
+            }
+        } else {
+            stemIdx = HiddenStems.of(monthBranchIdx)[0];
+            phase = "主氣";
+        }
+        return new MonthOrder(GanZhi.STEMS[stemIdx], GanZhi.STEM_ELEMENTS[stemIdx], phase, dayOrdinal);
+    }
+
+    /** 辰戌丑未（四墓庫月）餘氣／中氣／本氣天干索引；其餘地支回傳 null。 */
+    private int[] gravePhaseStems(int branchIdx) {
+        return switch (branchIdx) {
+            case 4 -> new int[]{1, 9, 4};   // 辰：乙(餘氣) 癸(中氣，水庫) 戊(本氣)
+            case 7 -> new int[]{3, 1, 5};   // 未：丁(餘氣) 乙(中氣，木庫) 己(本氣)
+            case 10 -> new int[]{7, 3, 4};  // 戌：辛(餘氣) 丁(中氣，火庫) 戊(本氣)
+            case 1 -> new int[]{9, 7, 5};   // 丑：癸(餘氣) 辛(中氣，金庫) 己(本氣)
+            default -> null;
+        };
     }
 
     /**

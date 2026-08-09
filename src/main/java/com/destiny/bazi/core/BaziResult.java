@@ -17,10 +17,13 @@ public final class BaziResult {
     private final PillarTenGods dayTenGods;
     private final PillarTenGods hourTenGods;
 
+    private final MonthOrder monthOrder;
+
     public BaziResult(Pillar yearPillar, Pillar monthPillar, Pillar dayPillar, Pillar hourPillar,
                        int effectiveYear, boolean earlyZiShift,
                        PillarTenGods yearTenGods, PillarTenGods monthTenGods,
-                       PillarTenGods dayTenGods, PillarTenGods hourTenGods) {
+                       PillarTenGods dayTenGods, PillarTenGods hourTenGods,
+                       MonthOrder monthOrder) {
         this.yearPillar = yearPillar;
         this.monthPillar = monthPillar;
         this.dayPillar = dayPillar;
@@ -31,6 +34,7 @@ public final class BaziResult {
         this.monthTenGods = monthTenGods;
         this.dayTenGods = dayTenGods;
         this.hourTenGods = hourTenGods;
+        this.monthOrder = monthOrder;
     }
 
     public Pillar getYearPillar() {
@@ -77,5 +81,10 @@ public final class BaziResult {
 
     public PillarTenGods getHourTenGods() {
         return hourTenGods;
+    }
+
+    /** 月令：出生時刻在月柱地支中實際當令的天干與五行。 */
+    public MonthOrder getMonthOrder() {
+        return monthOrder;
     }
 }
