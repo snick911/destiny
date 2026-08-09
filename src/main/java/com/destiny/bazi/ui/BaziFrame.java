@@ -6,6 +6,7 @@ import com.destiny.bazi.core.DaYunPeriod;
 import com.destiny.bazi.core.DaYunResult;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.core.LiuNianYear;
+import com.destiny.bazi.core.LiuYueMonth;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 
@@ -65,13 +66,16 @@ public final class BaziFrame extends JFrame {
 
     private final JComboBox<String> dayunSelectCombo = new JComboBox<>();
     private final JComboBox<String> liunianSelectCombo = new JComboBox<>();
+    private final JComboBox<String> liuyueSelectCombo = new JComboBox<>();
     private final PillarPanel selectedDaYunPanel = new PillarPanel("大運");
     private final PillarPanel selectedLiuNianPanel = new PillarPanel("流年");
-    private final JLabel selectionSectionTitle = new JLabel("大運／流年查詢", SwingConstants.CENTER);
+    private final PillarPanel selectedLiuYuePanel = new PillarPanel("流月");
+    private final JLabel selectionSectionTitle = new JLabel("大運／流年／流月查詢", SwingConstants.CENTER);
     private boolean updatingCombos = false;
 
     private List<DaYunPeriod> currentPeriods = new ArrayList<>();
     private final List<Integer> currentLiuNianYears = new ArrayList<>();
+    private Integer currentLiuYueYear;
     private BaziResult currentResult;
     private BirthInput currentInput;
 
@@ -113,6 +117,8 @@ public final class BaziFrame extends JFrame {
         dayunSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
         liunianSelectCombo.setBackground(DarkTheme.BG_CARD);
         liunianSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
+        liuyueSelectCombo.setBackground(DarkTheme.BG_CARD);
+        liuyueSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
         dayunSelectCombo.addActionListener(e -> {
             if (!updatingCombos) {
                 onDaYunSelectionChanged();
@@ -121,6 +127,11 @@ public final class BaziFrame extends JFrame {
         liunianSelectCombo.addActionListener(e -> {
             if (!updatingCombos) {
                 onLiuNianSelectionChanged();
+            }
+        });
+        liuyueSelectCombo.addActionListener(e -> {
+            if (!updatingCombos) {
+                onLiuYueSelectionChanged();
             }
         });
 
@@ -202,7 +213,9 @@ public final class BaziFrame extends JFrame {
                         + "年柱以立春為界、月柱以十二節劃分、日柱以儒略日數推算、\n"
                         + "時柱以五鼠遁推算，並附十神與地支藏干十神。\n"
                         + "大運依性別與年干陰陽判定順排／逆排，起運歲數以\n"
-                        + "出生時刻與最近節氣的距離換算（三日折一歲）。",
+                        + "出生時刻與最近節氣的距離換算（三日折一歲）。\n"
+                        + "選定大運後可進一步選擇流年、流月，查看該年/月的\n"
+                        + "干支、十神與地支藏干。",
                 "關於", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -383,13 +396,17 @@ public final class BaziFrame extends JFrame {
         dayunSelectCombo.setMaximumSize(new Dimension(190, 30));
         liunianSelectCombo.setPreferredSize(new Dimension(170, 30));
         liunianSelectCombo.setMaximumSize(new Dimension(190, 30));
+        liuyueSelectCombo.setPreferredSize(new Dimension(150, 30));
+        liuyueSelectCombo.setMaximumSize(new Dimension(170, 30));
         comboRow.add(labeledComponent("選擇大運", dayunSelectCombo));
         comboRow.add(labeledComponent("選擇流年", liunianSelectCombo));
+        comboRow.add(labeledComponent("選擇流月", liuyueSelectCombo));
 
-        JPanel panelsRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        JPanel panelsRow = new JPanel(new GridLayout(1, 3, 14, 0));
         panelsRow.setOpaque(false);
         panelsRow.add(selectedDaYunPanel);
         panelsRow.add(selectedLiuNianPanel);
+        panelsRow.add(selectedLiuYuePanel);
 
         content.add(comboRow);
         content.add(Box.createVerticalStrut(10));
@@ -446,6 +463,7 @@ public final class BaziFrame extends JFrame {
         genderCombo.setFont(genderCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         dayunSelectCombo.setFont(dayunSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         liunianSelectCombo.setFont(liunianSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        liuyueSelectCombo.setFont(liuyueSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
@@ -461,6 +479,7 @@ public final class BaziFrame extends JFrame {
         }
         selectedDaYunPanel.setFontScale(fontScale);
         selectedLiuNianPanel.setFontScale(fontScale);
+        selectedLiuYuePanel.setFontScale(fontScale);
         revalidate();
         repaint();
     }
@@ -598,6 +617,35 @@ public final class BaziFrame extends JFrame {
         LiuNianYear liuNian = calculator.calculateLiuNian(calendarYear, dayStemIdx);
         selectedLiuNianPanel.setTitle("流年 " + calendarYear + "年");
         selectedLiuNianPanel.setPillar(liuNian.getPillar(), liuNian.getTenGods());
+
+        populateLiuYueCombo(calendarYear);
+    }
+
+    private void populateLiuYueCombo(int liuNianYear) {
+        updatingCombos = true;
+        liuyueSelectCombo.removeAllItems();
+        currentLiuYueYear = liuNianYear;
+        int dayStemIdx = currentResult.getDayPillar().getStemIndex();
+        for (int m = 0; m < 12; m++) {
+            LiuYueMonth liuYue = calculator.calculateLiuYue(liuNianYear, m, dayStemIdx);
+            liuyueSelectCombo.addItem(liuYue.getMonthName() + "　" + liuYue.getPillar().getGanZhi());
+        }
+        if (liuyueSelectCombo.getItemCount() > 0) {
+            liuyueSelectCombo.setSelectedIndex(0);
+        }
+        updatingCombos = false;
+        onLiuYueSelectionChanged();
+    }
+
+    private void onLiuYueSelectionChanged() {
+        int idx = liuyueSelectCombo.getSelectedIndex();
+        if (idx < 0 || currentResult == null || currentLiuYueYear == null) {
+            return;
+        }
+        int dayStemIdx = currentResult.getDayPillar().getStemIndex();
+        LiuYueMonth liuYue = calculator.calculateLiuYue(currentLiuYueYear, idx, dayStemIdx);
+        selectedLiuYuePanel.setTitle("流月 " + currentLiuYueYear + "年" + liuYue.getMonthName());
+        selectedLiuYuePanel.setPillar(liuYue.getPillar(), liuYue.getTenGods());
     }
 
     // ---------------------------------------------------------------- 儲存／載入

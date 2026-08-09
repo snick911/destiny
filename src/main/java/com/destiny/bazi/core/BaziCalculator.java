@@ -144,6 +144,23 @@ public final class BaziCalculator {
         return new LiuNianYear(calendarYear, pillar, tenGods);
     }
 
+    /**
+     * 流月排盤：在指定流年內，依月支固定順序（寅卯辰巳午未申酉戌亥子丑，
+     * 即正月~十二月）與該流年年干以「五虎遁」推算各月干支及十神。
+     *
+     * @param liuNianYear 流年西元年份
+     * @param monthIndex  0=正月（寅）～11=十二月（丑）
+     */
+    public LiuYueMonth calculateLiuYue(int liuNianYear, int monthIndex, int dayStemIdx) {
+        int yearStemIdx = GanZhi.mod(liuNianYear - 4, 10);
+        int yinMonthStemIdx = GanZhi.mod((yearStemIdx % 5) * 2 + 2, 10);
+        int branchIdx = GanZhi.mod(2 + monthIndex, 12);
+        int stemIdx = GanZhi.mod(yinMonthStemIdx + monthIndex, 10);
+        Pillar pillar = new Pillar(stemIdx, branchIdx);
+        PillarTenGods tenGods = tenGodsFor(dayStemIdx, pillar, false);
+        return new LiuYueMonth(liuNianYear, monthIndex, pillar, tenGods);
+    }
+
     /** 找出出生時刻之前（after=false）或之後（after=true）最接近的節氣時刻。 */
     private LocalDateTime findAdjacentJieTime(LocalDateTime birth, boolean after) {
         int y = birth.getYear();
