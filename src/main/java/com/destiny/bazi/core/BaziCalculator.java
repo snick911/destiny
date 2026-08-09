@@ -179,36 +179,38 @@ public final class BaziCalculator {
     private static final double[] SEASON_STATE_SCORE = {2.0, 1.5, 0.0, 0.5, 1.0};
 
     /**
-     * 五行質量：以月令五行為基準，依旺相休囚死加權四柱天干（權重 1）與
-     * 地支藏干（依藏干數以 2:1 或 2:1:1 比例分配權重，總和為 1）的五行分量。
+     * 五行質量：先以原始命盤（四柱天干權重 1、地支藏干依比例分配權重，
+     * 總和為 1）算出五行基本分，再依月令旺相休囚死為每個五行各加一次
+     * 月令加分，兩者相加為五行總分。
      */
     public FiveElementMass calculateFiveElementMass(BaziResult result) {
-        int seasonIdx = elementIndex(result.getMonthOrder().getElement());
-
         Map<String, Double> mass = new LinkedHashMap<>();
         for (String element : ELEMENT_ORDER) {
             mass.put(element, 0.0);
         }
 
+        // ---- 基本分：命盤四柱天干與地支藏干的原始五行分量 ----
         Pillar[] pillars = {
                 result.getYearPillar(), result.getMonthPillar(), result.getDayPillar(), result.getHourPillar()
         };
         for (Pillar pillar : pillars) {
-            addWeightedMass(mass, pillar.getStemElement(), seasonIdx, 1.0);
+            mass.merge(pillar.getStemElement(), 1.0, Double::sum);
 
             int[] hidden = HiddenStems.of(pillar.getBranchIndex());
             double[] ratios = hiddenStemRatios(hidden.length);
             for (int i = 0; i < hidden.length; i++) {
-                addWeightedMass(mass, GanZhi.STEM_ELEMENTS[hidden[i]], seasonIdx, ratios[i]);
+                mass.merge(GanZhi.STEM_ELEMENTS[hidden[i]], ratios[i], Double::sum);
             }
         }
 
-        return new FiveElementMass(mass);
-    }
+        // ---- 月令加分：依旺相休囚死，各五行各加一次月令加成 ----
+        int seasonIdx = elementIndex(result.getMonthOrder().getElement());
+        for (int i = 0; i < ELEMENT_ORDER.length; i++) {
+            int diff = GanZhi.mod(i - seasonIdx, 5);
+            mass.merge(ELEMENT_ORDER[i], SEASON_STATE_SCORE[diff], Double::sum);
+        }
 
-    private void addWeightedMass(Map<String, Double> mass, String element, int seasonIdx, double weight) {
-        int diff = GanZhi.mod(elementIndex(element) - seasonIdx, 5);
-        mass.merge(element, SEASON_STATE_SCORE[diff] * weight, Double::sum);
+        return new FiveElementMass(mass);
     }
 
     /** 地支藏干依藏干數的權重分配：單藏 1；雙藏 2/3、1/3；三藏 2/4、1/4、1/4。 */
