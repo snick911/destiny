@@ -184,15 +184,30 @@ public final class BaziCalculator {
      * 月令加分，兩者相加為五行總分。
      */
     public FiveElementMass calculateFiveElementMass(BaziResult result) {
+        return calculateFiveElementMass(result, List.of());
+    }
+
+    /**
+     * 五行質量（含大運／流年）：在原始命盤四柱之外，另將目前所選大運柱與
+     * 流年柱的天干、地支藏干一併計入基本分，月令加分仍以命盤月令為準、
+     * 每個五行各加一次。
+     */
+    public FiveElementMass calculateFiveElementMassWithLuck(BaziResult result, Pillar daYunPillar,
+                                                              Pillar liuNianPillar) {
+        return calculateFiveElementMass(result, List.of(daYunPillar, liuNianPillar));
+    }
+
+    private FiveElementMass calculateFiveElementMass(BaziResult result, List<Pillar> extraPillars) {
         Map<String, Double> mass = new LinkedHashMap<>();
         for (String element : ELEMENT_ORDER) {
             mass.put(element, 0.0);
         }
 
-        // ---- 基本分：命盤四柱天干與地支藏干的原始五行分量 ----
-        Pillar[] pillars = {
-                result.getYearPillar(), result.getMonthPillar(), result.getDayPillar(), result.getHourPillar()
-        };
+        // ---- 基本分：命盤四柱（及額外指定的大運／流年柱）天干與地支藏干的原始五行分量 ----
+        List<Pillar> pillars = new ArrayList<>(List.of(
+                result.getYearPillar(), result.getMonthPillar(), result.getDayPillar(), result.getHourPillar()));
+        pillars.addAll(extraPillars);
+
         for (Pillar pillar : pillars) {
             mass.merge(pillar.getStemElement(), 1.0, Double::sum);
 
