@@ -75,7 +75,8 @@ public final class BaziFrame extends JFrame {
     private final PillarPanel selectedLiuNianPanel = new PillarPanel("流年");
     private final PillarPanel selectedLiuYuePanel = new PillarPanel("流月");
     private final JLabel selectionSectionTitle = new JLabel("大運／流年／流月查詢", SwingConstants.CENTER);
-    private final JLabel luckFiveElementMassLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel luckFiveElementMassTitle = new JLabel("五行質量（命盤＋大運＋流年）", SwingConstants.CENTER);
+    private final FiveElementBarChart luckFiveElementMassChart = new FiveElementBarChart();
     private boolean updatingCombos = false;
 
     private List<DaYunPeriod> currentPeriods = new ArrayList<>();
@@ -97,7 +98,8 @@ public final class BaziFrame extends JFrame {
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel monthOrderLabel = new JLabel(" ", SwingConstants.CENTER);
-    private final JLabel fiveElementMassLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel fiveElementMassTitle = new JLabel("五行質量（基本分＋月令加分）", SwingConstants.CENTER);
+    private final FiveElementBarChart fiveElementMassChart = new FiveElementBarChart();
 
     private JPanel exportPanel;
 
@@ -421,14 +423,17 @@ public final class BaziFrame extends JFrame {
         panelsRow.add(selectedLiuNianPanel);
         panelsRow.add(selectedLiuYuePanel);
 
-        luckFiveElementMassLabel.setForeground(DarkTheme.FG_SECONDARY);
-        luckFiveElementMassLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        luckFiveElementMassTitle.setForeground(DarkTheme.FG_SECONDARY);
+        luckFiveElementMassTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        luckFiveElementMassChart.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         content.add(comboRow);
         content.add(Box.createVerticalStrut(10));
         content.add(panelsRow);
         content.add(Box.createVerticalStrut(10));
-        content.add(luckFiveElementMassLabel);
+        content.add(luckFiveElementMassTitle);
+        content.add(Box.createVerticalStrut(4));
+        content.add(luckFiveElementMassChart);
 
         panel.add(content, BorderLayout.CENTER);
         return panel;
@@ -451,8 +456,9 @@ public final class BaziFrame extends JFrame {
         monthOrderLabel.setForeground(DarkTheme.FG_SECONDARY);
         monthOrderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        fiveElementMassLabel.setForeground(DarkTheme.FG_SECONDARY);
-        fiveElementMassLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        fiveElementMassTitle.setForeground(DarkTheme.FG_SECONDARY);
+        fiveElementMassTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        fiveElementMassChart.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         panel.add(summarySectionTitle);
         panel.add(Box.createVerticalStrut(8));
@@ -461,8 +467,10 @@ public final class BaziFrame extends JFrame {
         panel.add(noteLabel);
         panel.add(Box.createVerticalStrut(4));
         panel.add(monthOrderLabel);
-        panel.add(Box.createVerticalStrut(6));
-        panel.add(fiveElementMassLabel);
+        panel.add(Box.createVerticalStrut(8));
+        panel.add(fiveElementMassTitle);
+        panel.add(Box.createVerticalStrut(4));
+        panel.add(fiveElementMassChart);
         return panel;
     }
 
@@ -496,8 +504,10 @@ public final class BaziFrame extends JFrame {
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         monthOrderLabel.setFont(monthOrderLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
-        fiveElementMassLabel.setFont(fiveElementMassLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
-        luckFiveElementMassLabel.setFont(luckFiveElementMassLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        fiveElementMassTitle.setFont(fiveElementMassTitle.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        luckFiveElementMassTitle.setFont(luckFiveElementMassTitle.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        fiveElementMassChart.setFontScale(fontScale);
+        luckFiveElementMassChart.setFontScale(fontScale);
         dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         for (JLabel l : sectionTitleLabels) {
             l.setFont(l.getFont().deriveFont(Font.BOLD, (float) (SECTION_TITLE_SIZE * fontScale)));
@@ -582,26 +592,7 @@ public final class BaziFrame extends JFrame {
                 mo.getDayOfMonth()));
 
         FiveElementMass mass = calculator.calculateFiveElementMass(result);
-        fiveElementMassLabel.setText(formatFiveElementMassHtml("五行質量（基本分＋月令加分）：", mass));
-    }
-
-    private static final String[] ELEMENT_DISPLAY_ORDER = {"木", "火", "土", "金", "水"};
-
-    private String formatFiveElementMassHtml(String prefix, FiveElementMass mass) {
-        StringBuilder html = new StringBuilder("<html>").append(prefix);
-        for (int i = 0; i < ELEMENT_DISPLAY_ORDER.length; i++) {
-            String element = ELEMENT_DISPLAY_ORDER[i];
-            Color color = DarkTheme.elementColor(element);
-            String hex = String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
-            if (i > 0) {
-                html.append("　");
-            }
-            html.append("<span style='color:").append(hex).append("'>")
-                    .append(element).append(String.format(" %.2f", mass.get(element)))
-                    .append("</span>");
-        }
-        html.append("</html>");
-        return html.toString();
+        fiveElementMassChart.setMass(mass);
     }
 
     private DaYunResult renderDaYun(BaziResult result, BirthInput input) {
@@ -686,8 +677,7 @@ public final class BaziFrame extends JFrame {
         DaYunPeriod period = currentPeriods.get(dayunIdx);
         FiveElementMass luckMass = calculator.calculateFiveElementMassWithLuck(
                 currentResult, period.getPillar(), liuNian.getPillar());
-        luckFiveElementMassLabel.setText(formatFiveElementMassHtml(
-                "五行質量（命盤＋大運＋流年）：", luckMass));
+        luckFiveElementMassChart.setMass(luckMass);
 
         populateLiuYueCombo(calendarYear);
     }
