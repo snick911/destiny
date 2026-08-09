@@ -5,6 +5,7 @@ import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.DaYunPeriod;
 import com.destiny.bazi.core.DaYunResult;
 import com.destiny.bazi.core.FiveElementMass;
+import com.destiny.bazi.core.GanZhi;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.core.LiuNianYear;
 import com.destiny.bazi.core.LiuYueMonth;
@@ -53,9 +54,9 @@ public final class BaziFrame extends JFrame {
     private final JSpinner yearSpinner;
     private final JSpinner monthSpinner;
     private final JSpinner daySpinner;
-    private final JSpinner hourSpinner;
     private final JSpinner minuteSpinner;
     private final JSpinner[] spinners;
+    private final JComboBox<String> hourCombo = new JComboBox<>(buildHourOptions());
     private final JComboBox<Gender> genderCombo = new JComboBox<>(Gender.values());
 
     private final PillarPanel yearPanel = new PillarPanel("年柱");
@@ -114,14 +115,16 @@ public final class BaziFrame extends JFrame {
         yearSpinner = new JSpinner(new SpinnerNumberModel(nowYear, 1900, 2100, 1));
         monthSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 12, 1));
         daySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 31, 1));
-        hourSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 23, 1));
         minuteSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 59, 1));
-        spinners = new JSpinner[]{yearSpinner, monthSpinner, daySpinner, hourSpinner, minuteSpinner};
+        spinners = new JSpinner[]{yearSpinner, monthSpinner, daySpinner, minuteSpinner};
         for (JSpinner sp : spinners) {
             sp.setEditor(new JSpinner.NumberEditor(sp, "#"));
             sp.getEditor().getComponent(0).setBackground(DarkTheme.BG_CARD);
             sp.getEditor().getComponent(0).setForeground(DarkTheme.FG_PRIMARY);
         }
+        hourCombo.setBackground(DarkTheme.BG_CARD);
+        hourCombo.setForeground(DarkTheme.FG_PRIMARY);
+        hourCombo.addActionListener(e -> calculate());
         genderCombo.setBackground(DarkTheme.BG_CARD);
         genderCombo.setForeground(DarkTheme.FG_PRIMARY);
         genderCombo.addActionListener(e -> calculate());
@@ -157,6 +160,16 @@ public final class BaziFrame extends JFrame {
 
         applyFontScale();
         calculate();
+    }
+
+    /** 產生「時」下拉選單的選項：0~23 時，並附上對應的時辰地支。 */
+    private static String[] buildHourOptions() {
+        String[] options = new String[24];
+        for (int h = 0; h < 24; h++) {
+            int branchIdx = ((h + 1) / 2) % 12;
+            options[h] = h + "時（" + GanZhi.BRANCHES[branchIdx] + "）";
+        }
+        return options;
     }
 
     // ---------------------------------------------------------------- 選單列
@@ -251,11 +264,11 @@ public final class BaziFrame extends JFrame {
         center.add(Box.createVerticalStrut(22));
         center.add(buildFourPillarsPanel());
         center.add(Box.createVerticalStrut(22));
+        center.add(buildSummaryPanel());
+        center.add(Box.createVerticalStrut(22));
         center.add(buildDaYunPanel());
         center.add(Box.createVerticalStrut(22));
         center.add(buildSelectionPanel());
-        center.add(Box.createVerticalStrut(22));
-        center.add(buildSummaryPanel());
         exportPanel = center;
 
         JScrollPane scrollPane = new JScrollPane(center);
@@ -299,7 +312,11 @@ public final class BaziFrame extends JFrame {
         row.add(labeledSpinner("年", yearSpinner));
         row.add(labeledSpinner("月", monthSpinner));
         row.add(labeledSpinner("日", daySpinner));
-        row.add(labeledSpinner("時", hourSpinner));
+
+        hourCombo.setPreferredSize(new Dimension(110, 30));
+        hourCombo.setMaximumSize(new Dimension(120, 30));
+        row.add(labeledComponent("時", hourCombo));
+
         row.add(labeledSpinner("分", minuteSpinner));
 
         genderCombo.setPreferredSize(new Dimension(70, 30));
@@ -512,6 +529,7 @@ public final class BaziFrame extends JFrame {
             Component editor = sp.getEditor().getComponent(0);
             editor.setFont(editor.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         }
+        hourCombo.setFont(hourCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         genderCombo.setFont(genderCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         dayunSelectCombo.setFont(dayunSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         liunianSelectCombo.setFont(liunianSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
@@ -549,7 +567,7 @@ public final class BaziFrame extends JFrame {
         int year = (int) yearSpinner.getValue();
         int month = (int) monthSpinner.getValue();
         int day = (int) daySpinner.getValue();
-        int hour = (int) hourSpinner.getValue();
+        int hour = hourCombo.getSelectedIndex();
         int minute = (int) minuteSpinner.getValue();
 
         try {
@@ -834,7 +852,7 @@ public final class BaziFrame extends JFrame {
             yearSpinner.setValue(input.year());
             monthSpinner.setValue(input.month());
             daySpinner.setValue(input.day());
-            hourSpinner.setValue(input.hour());
+            hourCombo.setSelectedIndex(input.hour());
             minuteSpinner.setValue(input.minute());
             genderCombo.setSelectedItem(input.gender());
             calculate();
