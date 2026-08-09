@@ -172,6 +172,64 @@ public final class BaziCalculator {
         return new LiuYueMonth(liuNianYear, monthIndex, pillar, tenGods);
     }
 
+    // 五行順序（用於計算旺相休囚死的相生相剋位移）：木生火生土生金生水生木。
+    private static final String[] ELEMENT_ORDER = {"木", "火", "土", "金", "水"};
+
+    // 依與月令五行的位移（0~4）對應：0=當我者旺、1=我生者相、2=我剋者死、3=剋我者囚、4=生我者休。
+    private static final double[] SEASON_STATE_SCORE = {2.0, 1.5, 0.0, 0.5, 1.0};
+
+    /**
+     * 五行質量：以月令五行為基準，依旺相休囚死加權四柱天干（權重 1）與
+     * 地支藏干（依藏干數以 2:1 或 2:1:1 比例分配權重，總和為 1）的五行分量。
+     */
+    public FiveElementMass calculateFiveElementMass(BaziResult result) {
+        int seasonIdx = elementIndex(result.getMonthOrder().getElement());
+
+        Map<String, Double> mass = new LinkedHashMap<>();
+        for (String element : ELEMENT_ORDER) {
+            mass.put(element, 0.0);
+        }
+
+        Pillar[] pillars = {
+                result.getYearPillar(), result.getMonthPillar(), result.getDayPillar(), result.getHourPillar()
+        };
+        for (Pillar pillar : pillars) {
+            addWeightedMass(mass, pillar.getStemElement(), seasonIdx, 1.0);
+
+            int[] hidden = HiddenStems.of(pillar.getBranchIndex());
+            double[] ratios = hiddenStemRatios(hidden.length);
+            for (int i = 0; i < hidden.length; i++) {
+                addWeightedMass(mass, GanZhi.STEM_ELEMENTS[hidden[i]], seasonIdx, ratios[i]);
+            }
+        }
+
+        return new FiveElementMass(mass);
+    }
+
+    private void addWeightedMass(Map<String, Double> mass, String element, int seasonIdx, double weight) {
+        int diff = GanZhi.mod(elementIndex(element) - seasonIdx, 5);
+        mass.merge(element, SEASON_STATE_SCORE[diff] * weight, Double::sum);
+    }
+
+    /** 地支藏干依藏干數的權重分配：單藏 1；雙藏 2/3、1/3；三藏 2/4、1/4、1/4。 */
+    private double[] hiddenStemRatios(int count) {
+        return switch (count) {
+            case 1 -> new double[]{1.0};
+            case 2 -> new double[]{2.0 / 3.0, 1.0 / 3.0};
+            case 3 -> new double[]{2.0 / 4.0, 1.0 / 4.0, 1.0 / 4.0};
+            default -> throw new IllegalStateException("未預期的藏干數量: " + count);
+        };
+    }
+
+    private int elementIndex(String element) {
+        for (int i = 0; i < ELEMENT_ORDER.length; i++) {
+            if (ELEMENT_ORDER[i].equals(element)) {
+                return i;
+            }
+        }
+        throw new IllegalArgumentException("未知的五行: " + element);
+    }
+
     /** 找出出生時刻之前（after=false）或之後（after=true）最接近的節氣時刻。 */
     private LocalDateTime findAdjacentJieTime(LocalDateTime birth, boolean after) {
         int y = birth.getYear();

@@ -4,6 +4,7 @@ import com.destiny.bazi.core.BaziCalculator;
 import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.DaYunPeriod;
 import com.destiny.bazi.core.DaYunResult;
+import com.destiny.bazi.core.FiveElementMass;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.core.LiuNianYear;
 import com.destiny.bazi.core.LiuYueMonth;
@@ -95,6 +96,7 @@ public final class BaziFrame extends JFrame {
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel monthOrderLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel fiveElementMassLabel = new JLabel(" ", SwingConstants.CENTER);
 
     private JPanel exportPanel;
 
@@ -443,6 +445,9 @@ public final class BaziFrame extends JFrame {
         monthOrderLabel.setForeground(DarkTheme.FG_SECONDARY);
         monthOrderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        fiveElementMassLabel.setForeground(DarkTheme.FG_SECONDARY);
+        fiveElementMassLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         panel.add(summarySectionTitle);
         panel.add(Box.createVerticalStrut(8));
         panel.add(summaryLabel);
@@ -450,6 +455,8 @@ public final class BaziFrame extends JFrame {
         panel.add(noteLabel);
         panel.add(Box.createVerticalStrut(4));
         panel.add(monthOrderLabel);
+        panel.add(Box.createVerticalStrut(6));
+        panel.add(fiveElementMassLabel);
         return panel;
     }
 
@@ -483,6 +490,7 @@ public final class BaziFrame extends JFrame {
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         monthOrderLabel.setFont(monthOrderLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        fiveElementMassLabel.setFont(fiveElementMassLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         dayunNoteLabel.setFont(dayunNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         for (JLabel l : sectionTitleLabels) {
             l.setFont(l.getFont().deriveFont(Font.BOLD, (float) (SECTION_TITLE_SIZE * fontScale)));
@@ -565,6 +573,23 @@ public final class BaziFrame extends JFrame {
                 mo.getStem(),
                 mo.getElement(),
                 mo.getDayOfMonth()));
+
+        FiveElementMass mass = calculator.calculateFiveElementMass(result);
+        StringBuilder html = new StringBuilder("<html>五行質量（依月令旺相休囚死加權）：");
+        String[] elementOrder = {"木", "火", "土", "金", "水"};
+        for (int i = 0; i < elementOrder.length; i++) {
+            String element = elementOrder[i];
+            Color color = DarkTheme.elementColor(element);
+            String hex = String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
+            if (i > 0) {
+                html.append("　");
+            }
+            html.append("<span style='color:").append(hex).append("'>")
+                    .append(element).append(String.format(" %.2f", mass.get(element)))
+                    .append("</span>");
+        }
+        html.append("</html>");
+        fiveElementMassLabel.setText(html.toString());
     }
 
     private DaYunResult renderDaYun(BaziResult result, BirthInput input) {
