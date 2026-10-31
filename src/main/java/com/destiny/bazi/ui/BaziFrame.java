@@ -243,7 +243,8 @@ public final class BaziFrame extends JFrame {
                         + "年柱以立春為界、月柱以十二節劃分、日柱以儒略日數推算、\n"
                         + "時柱以五鼠遁推算，並附十神與地支藏干十神。\n"
                         + "大運依性別與年干陰陽判定順排／逆排，起運歲數以\n"
-                        + "出生時刻與最近節氣的距離換算（三日折一歲）。\n"
+                        + "出生時刻與最近節氣的距離換算（三日折一歲），\n"
+                        + "出生日期加上起運歲數即為交運日期，大運自交運當年起算。\n"
                         + "選定大運後可進一步選擇流年、流月，查看該年/月的\n"
                         + "干支、十神與地支藏干。",
                 "關於", JOptionPane.INFORMATION_MESSAGE);
@@ -402,12 +403,18 @@ public final class BaziFrame extends JFrame {
             }
         }
 
+        // 高度依大運卡片實際所需（含字體縮放）再加上水平捲軸，避免卡片底部的藏干被裁切。
         JScrollPane scroll = new JScrollPane(row,
-                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED) {
+            @Override
+            public Dimension getPreferredSize() {
+                int height = row.getPreferredSize().height + getHorizontalScrollBar().getPreferredSize().height + 4;
+                return new Dimension(680, height);
+            }
+        };
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setPreferredSize(new Dimension(680, 240));
 
         panel.add(header, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
@@ -427,10 +434,10 @@ public final class BaziFrame extends JFrame {
 
         JPanel comboRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 6));
         comboRow.setOpaque(false);
-        dayunSelectCombo.setPreferredSize(new Dimension(170, 30));
-        dayunSelectCombo.setMaximumSize(new Dimension(190, 30));
-        liunianSelectCombo.setPreferredSize(new Dimension(170, 30));
-        liunianSelectCombo.setMaximumSize(new Dimension(190, 30));
+        dayunSelectCombo.setPreferredSize(new Dimension(250, 30));
+        dayunSelectCombo.setMaximumSize(new Dimension(270, 30));
+        liunianSelectCombo.setPreferredSize(new Dimension(200, 30));
+        liunianSelectCombo.setMaximumSize(new Dimension(220, 30));
         liuyueSelectCombo.setPreferredSize(new Dimension(150, 30));
         liuyueSelectCombo.setMaximumSize(new Dimension(170, 30));
         comboRow.add(labeledComponent("選擇大運", dayunSelectCombo));
@@ -641,17 +648,20 @@ public final class BaziFrame extends JFrame {
         DaYunResult dayun = calculator.calculateDaYun(result, input.year(), input.month(), input.day(),
                 input.hour(), input.minute(), input.gender());
 
-        dayunNoteLabel.setText(String.format("%s命，年干%s，%s，起運約 %d 歲 %d 個月 %d 天",
+        LocalDate startDate = dayun.getStartDate();
+        dayunNoteLabel.setText(String.format("%s命，年干%s，%s，起運約 %d 歲 %d 個月 %d 天，約 %d 年 %d 月 %d 日交運",
                 input.gender().getLabel(),
                 result.getYearPillar().getStemIndex() % 2 == 0 ? "陽" : "陰",
                 dayun.isForward() ? "順排" : "逆排",
-                dayun.getStartAgeYears(), dayun.getStartAgeMonths(), dayun.getStartAgeDays()));
+                dayun.getStartAgeYears(), dayun.getStartAgeMonths(), dayun.getStartAgeDays(),
+                startDate.getYear(), startDate.getMonthValue(), startDate.getDayOfMonth()));
 
         List<DaYunPeriod> periods = dayun.getPeriods();
         for (int i = 0; i < dayunPanels.size() && i < periods.size(); i++) {
             DaYunPeriod period = periods.get(i);
             PillarPanel panel = dayunPanels.get(i);
-            panel.setTitle(period.getStartAge() + "~" + period.getEndAge() + "歲");
+            panel.setTitle("<html><center>" + period.getStartYear() + "~" + period.getEndYear()
+                    + "<br>" + period.getStartAge() + "~" + period.getEndAge() + "歲</center></html>");
             panel.setPillar(period.getPillar(), period.getTenGods());
         }
         return dayun;
@@ -663,8 +673,8 @@ public final class BaziFrame extends JFrame {
         updatingCombos = true;
         dayunSelectCombo.removeAllItems();
         for (DaYunPeriod period : currentPeriods) {
-            dayunSelectCombo.addItem(period.getStartAge() + "~" + period.getEndAge() + "歲　"
-                    + period.getPillar().getGanZhi());
+            dayunSelectCombo.addItem(period.getStartYear() + "~" + period.getEndYear() + "年（"
+                    + period.getStartAge() + "~" + period.getEndAge() + "歲）　" + period.getPillar().getGanZhi());
         }
         if (dayunSelectCombo.getItemCount() > 0) {
             dayunSelectCombo.setSelectedIndex(0);
@@ -679,7 +689,7 @@ public final class BaziFrame extends JFrame {
             return;
         }
         DaYunPeriod period = currentPeriods.get(idx);
-        selectedDaYunPanel.setTitle("大運 " + period.getStartAge() + "~" + period.getEndAge() + "歲");
+        selectedDaYunPanel.setTitle("大運 " + period.getStartYear() + "~" + period.getEndYear() + "年");
         selectedDaYunPanel.setPillar(period.getPillar(), period.getTenGods());
 
         populateLiuNianCombo(period);
@@ -690,8 +700,8 @@ public final class BaziFrame extends JFrame {
         liunianSelectCombo.removeAllItems();
         currentLiuNianYears.clear();
         int dayStemIdx = currentResult.getDayPillar().getStemIndex();
-        for (int age = period.getStartAge(); age <= period.getEndAge(); age++) {
-            int calendarYear = currentInput.year() + age;
+        for (int calendarYear = period.getStartYear(); calendarYear <= period.getEndYear(); calendarYear++) {
+            int age = calendarYear - currentInput.year();
             currentLiuNianYears.add(calendarYear);
             LiuNianYear liuNian = calculator.calculateLiuNian(calendarYear, dayStemIdx);
             liunianSelectCombo.addItem(calendarYear + "年（" + age + "歲）　" + liuNian.getPillar().getGanZhi());

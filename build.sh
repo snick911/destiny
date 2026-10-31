@@ -20,6 +20,17 @@ echo "編譯 $NAME $VERSION ..."
 find src/main/java -name '*.java' > "$BUILD/sources.txt"
 javac --release 17 -encoding UTF-8 -d "$BUILD/classes" @"$BUILD/sources.txt"
 
+# 測試未全部通過就停止打包。沒有顯示環境時若有 xvfb-run，以虛擬顯示執行介面測試。
+echo "執行測試 ..."
+mkdir -p "$BUILD/test-classes"
+find src/test/java -name '*.java' > "$BUILD/test-sources.txt"
+javac --release 17 -encoding UTF-8 -cp "$BUILD/classes" -d "$BUILD/test-classes" @"$BUILD/test-sources.txt"
+RUNNER=()
+if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then
+    RUNNER=(xvfb-run -a)
+fi
+"${RUNNER[@]}" java -Dstdout.encoding=UTF-8 -cp "$BUILD/classes:$BUILD/test-classes" com.destiny.bazi.tests.AllTests
+
 cat > "$BUILD/MANIFEST.MF" <<EOF
 Main-Class: com.destiny.bazi.Main
 Implementation-Title: $NAME

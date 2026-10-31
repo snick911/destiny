@@ -9,7 +9,7 @@
 的十神（含年干/月干/時干十神，與各柱地支藏干十神）；並依性別與年干
 陰陽推算大運（順排／逆排、起運歲數與各期干支、十神、藏干）。
 
-目前版本：**1.0.0**（各版本變更見 [CHANGELOG.md](CHANGELOG.md)）。
+目前版本：**1.0.1**（各版本變更見 [CHANGELOG.md](CHANGELOG.md)）。
 
 ## 下載與執行（一般使用者）
 
@@ -21,7 +21,8 @@
   「其他資訊」→「仍要執行」。
 - **跨平台版**（需已安裝 Java 17 以上）：`destiny-bazi-<版本>.zip`，解壓縮後
   Windows 雙擊 `run-windows.bat`；macOS / Linux 執行 `./run-mac-linux.sh`，
-  或直接 `java -jar destiny-bazi.jar`。
+  或直接 `java -jar destiny-bazi.jar`。Linux 需已安裝中文字型（例如
+  `fonts-noto-cjk` 或 `fonts-wqy-zenhei`），否則中文會顯示為方框。
 
 ## 執行（直接使用已建置的 JAR）
 
@@ -45,13 +46,41 @@ javac --release 17 -d out -encoding UTF-8 $(find src/main/java -name "*.java")
 java -cp out com.destiny.bazi.Main
 ```
 
+## 測試
+
+```bash
+./build.sh
+```
+
+`build.sh` 會先編譯並執行 `src/test/java` 的自動測試，**任何一項失敗即停止
+打包**。測試不依賴第三方套件，涵蓋：節氣時刻（與 26 筆官方公布時刻比對、
+1900~2100 年順序與間隔）、四柱（公開八字、立春交界、子時換日、五虎遁／
+五鼠遁）、十神與藏干表、流年流月、大運（順逆、起運、交運日期與各期年份）、
+五行質量與十神統計、以傳統口訣查表的獨立實作交叉比對一萬個隨機命盤、
+存檔與載入，以及介面冒煙測試（開啟主視窗、切換所有大運／流年／流月、
+字體縮放、繪製匯出圖片）與自我檢測。介面測試需要顯示環境；沒有顯示環境時
+若有 `xvfb-run` 會自動使用，否則略過。
+
+打包後的程式也可自我檢測：`DestinyBazi.exe --self-test 報告.txt`（或
+`java -jar destiny-bazi.jar --self-test 報告.txt`）會開啟主視窗、排一張已知
+命盤並寫出報告（作業系統、Java 版本、選用字型、排盤結果），正常時結束碼為
+0、報告最後一行為 `result=OK`。GitHub Actions 以此驗證 Windows 免安裝版。
+
+也可只執行測試：
+
+```bash
+javac --release 17 -encoding UTF-8 -d out $(find src/main/java -name "*.java")
+javac --release 17 -encoding UTF-8 -cp out -d out-test $(find src/test/java -name "*.java")
+java -cp out:out-test com.destiny.bazi.tests.AllTests
+```
+
 ## 打包與發佈新版本
 
 ```bash
 ./build.sh
 ```
 
-`build.sh` 會重新編譯並產生 `dist/destiny-bazi.jar`（manifest 內含
+`build.sh` 會在測試通過後重新編譯並產生 `dist/destiny-bazi.jar`（manifest 內含
 `Implementation-Version`）與 `dist/destiny-bazi-<版本>.zip`（JAR、啟動檔、
 README、CHANGELOG）。發佈新版本的步驟：
 
@@ -59,7 +88,8 @@ README、CHANGELOG）。發佈新版本的步驟：
 2. 在 `CHANGELOG.md` 新增該版本的變更紀錄
 3. 執行 `./build.sh`，提交 `dist/` 下的新檔案
 4. 合併到 `main`：GitHub Actions（`.github/workflows/release.yml`）會自動
-   建置跨平台 zip 與 Windows 免安裝版，建立 `v<版本>` 標籤與 Release 並附上
+   執行測試、建置跨平台 zip 與 Windows 免安裝版（並在 Windows 上執行
+   `DestinyBazi.exe --self-test` 驗證），全部成功後建立 `v<版本>` 標籤與 Release 並附上
    兩個 zip；版本號已發佈過則略過，不會覆蓋
 
 Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java.desktop`
@@ -104,8 +134,11 @@ Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java
 - **大運**：依「陽男陰女順排、陰男陽女逆排」判定方向（陽／陰依年干），
   以出生時刻與最近節氣的距離換算起運歲數（三日折一歲、一日折四個月），
   再從月柱起、依方向逐期推算八期大運（每期十年）的干支、十神與地支藏干。
-- **流年**：選定某一期大運後，可從該期涵蓋的十個西元年份中選擇特定
-  一年，直接以該年份推算年柱干支、十神與地支藏干。
+  出生日期加上起運的歲、月、天即為**交運日期**；第一期大運自交運當年
+  起算，其後每期十年，每張大運卡片標示起訖年份與歲數（歲數＝年份－
+  出生年，即當年滿幾歲，與流年清單一致）。
+- **流年**：選定某一期大運後，可從該期涵蓋的十個西元年份（交運當年起
+  連續十年）中選擇特定一年，直接以該年份推算年柱干支、十神與地支藏干。
 - **流月**：選定流年後，可從該年正月~十二月中選擇特定一月；月支固定
   順序為寅卯辰巳午未申酉戌亥子丑，月干依該流年年干以「五虎遁」推算，
   同樣附十神與地支藏干。
@@ -156,9 +189,17 @@ CHANGELOG.md                  # 版本更新紀錄
 packaging/                    # 打包進 zip 的啟動檔（Windows / macOS・Linux）
 dist/
 ├── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
-└── destiny-bazi-1.0.0.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
+└── destiny-bazi-1.0.1.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
+src/test/java/com/destiny/bazi/tests/
+├── AllTests.java             # 測試進入點（失敗時結束碼為 1）
+├── CalendarTests.java        # 節氣、四柱、口訣表、十神藏干、流年流月
+├── DaYunTests.java           # 大運與交運、五行質量、十神統計
+├── CrossCheckTests.java      # 獨立實作交叉比對
+├── FileIoTests.java          # 存檔與載入
+└── UiSmokeTests.java         # 介面冒煙測試
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
+├── SelfTest.java             # 自我檢測（--self-test，驗證打包版本可正常啟動）
 ├── AppInfo.java              # 程式名稱與版本號（版本號唯一來源）
 ├── core/
 │   ├── GanZhi.java            # 天干地支五行生肖資料表

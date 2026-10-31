@@ -1,5 +1,6 @@
 # 打包流程：
-#   - 每次推送到 main 或對 main 開 PR：建置跨平台 JAR／zip 與 Windows 免安裝版
+#   - 每次推送到 main 或對 main 開 PR：執行測試（build.sh），建置跨平台 JAR／zip
+#     與 Windows 免安裝版，並以 DestinyBazi.exe --self-test 實際啟動驗證
 #   - 推送到 main 且 AppInfo.VERSION 尚未發佈過：自動建立 v<版本> 標籤與 Release，
 #     並附上兩個 zip（版本號未變則略過，不覆蓋已發佈的檔案）
 name: 打包發佈
@@ -32,7 +33,11 @@ jobs:
           VERSION=$(sed -n 's/.*String VERSION = "\(.*\)";.*/\1/p' src/main/java/com/destiny/bazi/AppInfo.java)
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-      - name: 編譯打包
+      - name: 安裝中文字型（Ubuntu 主機預設沒有，介面測試與自我檢測需要）
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-wqy-zenhei
+      - name: 測試並打包
         run: ./build.sh
       - uses: actions/upload-artifact@v4
         with:
@@ -74,6 +79,23 @@ jobs:
             --dest build/image
           cp README.md CHANGELOG.md build/image/DestinyBazi/
           test -f build/image/DestinyBazi/DestinyBazi.exe
+      - name: 啟動測試（DestinyBazi.exe --self-test）
+        shell: pwsh
+        run: |
+          # 以打包好的 exe 與內建執行環境開啟主視窗、排已知命盤，結果寫入報告檔
+          $report = Join-Path $env:RUNNER_TEMP 'selftest.txt'
+          $p = Start-Process -FilePath build/image/DestinyBazi/DestinyBazi.exe `
+            -ArgumentList '--self-test', "`"$report`"" -PassThru
+          $null = $p.Handle  # 先取得 handle，結束後才讀得到 ExitCode
+          if (-not $p.WaitForExit(90000)) {
+            Stop-Process -Id $p.Id -Force
+            throw 'DestinyBazi.exe --self-test 逾時（90 秒）'
+          }
+          if (Test-Path $report) { Get-Content $report -Encoding utf8 } else { Write-Host '沒有產生報告檔' }
+          $passed = (Test-Path $report) -and (Select-String -Path $report -Pattern '^result=OK$' -Quiet)
+          if ($p.ExitCode -ne 0 -or -not $passed) {
+            throw "DestinyBazi.exe 自我檢測失敗（結束碼 $($p.ExitCode)）"
+          }
       - name: 壓縮
         shell: pwsh
         run: |
