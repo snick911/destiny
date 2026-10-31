@@ -45,13 +45,36 @@ javac --release 17 -d out -encoding UTF-8 $(find src/main/java -name "*.java")
 java -cp out com.destiny.bazi.Main
 ```
 
+## 測試
+
+```bash
+./build.sh
+```
+
+`build.sh` 會先編譯並執行 `src/test/java` 的自動測試，**任何一項失敗即停止
+打包**。測試不依賴第三方套件，涵蓋：節氣時刻（與 26 筆官方公布時刻比對、
+1900~2100 年順序與間隔）、四柱（公開八字、立春交界、子時換日、五虎遁／
+五鼠遁）、十神與藏干表、流年流月、大運（順逆、起運、交運日期與各期年份）、
+五行質量與十神統計、以傳統口訣查表的獨立實作交叉比對一萬個隨機命盤、
+存檔與載入，以及介面冒煙測試（開啟主視窗、切換所有大運／流年／流月、
+字體縮放、繪製匯出圖片）。介面測試需要顯示環境；沒有顯示環境時若有
+`xvfb-run` 會自動使用，否則略過。
+
+也可只執行測試：
+
+```bash
+javac --release 17 -encoding UTF-8 -d out $(find src/main/java -name "*.java")
+javac --release 17 -encoding UTF-8 -cp out -d out-test $(find src/test/java -name "*.java")
+java -cp out:out-test com.destiny.bazi.tests.AllTests
+```
+
 ## 打包與發佈新版本
 
 ```bash
 ./build.sh
 ```
 
-`build.sh` 會重新編譯並產生 `dist/destiny-bazi.jar`（manifest 內含
+`build.sh` 會在測試通過後重新編譯並產生 `dist/destiny-bazi.jar`（manifest 內含
 `Implementation-Version`）與 `dist/destiny-bazi-<版本>.zip`（JAR、啟動檔、
 README、CHANGELOG）。發佈新版本的步驟：
 
@@ -59,7 +82,8 @@ README、CHANGELOG）。發佈新版本的步驟：
 2. 在 `CHANGELOG.md` 新增該版本的變更紀錄
 3. 執行 `./build.sh`，提交 `dist/` 下的新檔案
 4. 合併到 `main`：GitHub Actions（`.github/workflows/release.yml`）會自動
-   建置跨平台 zip 與 Windows 免安裝版，建立 `v<版本>` 標籤與 Release 並附上
+   執行測試、建置跨平台 zip 與 Windows 免安裝版（並實際啟動 `DestinyBazi.exe`
+   確認可開出主視窗），全部成功後建立 `v<版本>` 標籤與 Release 並附上
    兩個 zip；版本號已發佈過則略過，不會覆蓋
 
 Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java.desktop`
@@ -160,6 +184,13 @@ packaging/                    # 打包進 zip 的啟動檔（Windows / macOS・L
 dist/
 ├── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
 └── destiny-bazi-1.0.1.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
+src/test/java/com/destiny/bazi/tests/
+├── AllTests.java             # 測試進入點（失敗時結束碼為 1）
+├── CalendarTests.java        # 節氣、四柱、口訣表、十神藏干、流年流月
+├── DaYunTests.java           # 大運與交運、五行質量、十神統計
+├── CrossCheckTests.java      # 獨立實作交叉比對
+├── FileIoTests.java          # 存檔與載入
+└── UiSmokeTests.java         # 介面冒煙測試
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
 ├── AppInfo.java              # 程式名稱與版本號（版本號唯一來源）
