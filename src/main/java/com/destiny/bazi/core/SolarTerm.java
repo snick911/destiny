@@ -189,11 +189,28 @@ public final class SolarTerm {
         return normalizeDegrees(longitude + (nutation + aberration) / 3600.0);
     }
 
-    /** ΔT＝TT－UT（秒），採 Espenak &amp; Meeus（NASA）分段多項式，適用 1860~2150 年。 */
+    /**
+     * ΔT＝TT－UT（秒），採 Espenak &amp; Meeus（NASA）分段多項式（1600~2150 年），
+     * 範圍外以長期拋物線估算。各段多項式只在自身區間內有效，超出後誤差會急遽發散。
+     */
     private static double deltaTSeconds(double jd) {
         double y = 2000.0 + (jd - 2451545.0) / 365.25;
         double t;
-        if (y < 1900) {
+        if (y < 1600 || y >= 2150) {
+            double u = (y - 1820) / 100.0;
+            return -20 + 32 * u * u;
+        } else if (y < 1700) {
+            t = y - 1600;
+            return 120 - 0.9808 * t - 0.01532 * t * t + t * t * t / 7129;
+        } else if (y < 1800) {
+            t = y - 1700;
+            return 8.83 + 0.1603 * t - 0.0059285 * t * t + 0.00013336 * t * t * t - Math.pow(t, 4) / 1174000;
+        } else if (y < 1860) {
+            t = y - 1800;
+            return 13.72 - 0.332447 * t + 0.0068612 * t * t + 0.0041116 * t * t * t
+                    - 0.00037436 * Math.pow(t, 4) + 0.0000121272 * Math.pow(t, 5)
+                    - 0.0000001699 * Math.pow(t, 6) + 0.000000000875 * Math.pow(t, 7);
+        } else if (y < 1900) {
             t = y - 1860;
             return 7.62 + 0.5737 * t - 0.251754 * t * t + 0.01680668 * t * t * t
                     - 0.0004473624 * Math.pow(t, 4) + Math.pow(t, 5) / 233174;
