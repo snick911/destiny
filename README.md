@@ -21,7 +21,8 @@
   「其他資訊」→「仍要執行」。
 - **跨平台版**（需已安裝 Java 17 以上）：`destiny-bazi-<版本>.zip`，解壓縮後
   Windows 雙擊 `run-windows.bat`；macOS / Linux 執行 `./run-mac-linux.sh`，
-  或直接 `java -jar destiny-bazi.jar`。
+  或直接 `java -jar destiny-bazi.jar`。Linux 需已安裝中文字型（例如
+  `fonts-noto-cjk` 或 `fonts-wqy-zenhei`），否則中文會顯示為方框。
 
 ## 執行（直接使用已建置的 JAR）
 

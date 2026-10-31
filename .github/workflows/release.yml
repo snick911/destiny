@@ -33,6 +33,10 @@ jobs:
           VERSION=$(sed -n 's/.*String VERSION = "\(.*\)";.*/\1/p' src/main/java/com/destiny/bazi/AppInfo.java)
           test -n "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: 安裝中文字型（Ubuntu 主機預設沒有，介面測試與自我檢測需要）
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-wqy-zenhei
       - name: 測試並打包
         run: ./build.sh
       - uses: actions/upload-artifact@v4
