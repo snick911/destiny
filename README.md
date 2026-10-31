@@ -9,6 +9,15 @@
 的十神（含年干/月干/時干十神，與各柱地支藏干十神）；並依性別與年干
 陰陽推算大運（順排／逆排、起運歲數與各期干支、十神、藏干）。
 
+目前版本：**1.0.0**（各版本變更見 [CHANGELOG.md](CHANGELOG.md)）。
+
+## 下載與執行（一般使用者）
+
+下載 `dist/destiny-bazi-1.0.0.zip` 並解壓縮，需已安裝 Java 17 以上：
+
+- **Windows**：雙擊 `run-windows.bat`
+- **macOS / Linux**：執行 `./run-mac-linux.sh`，或直接 `java -jar destiny-bazi.jar`
+
 ## 執行（直接使用已建置的 JAR）
 
 `dist/destiny-bazi.jar` 是以 `--release 17` 編譯、可獨立執行的 JAR
@@ -31,11 +40,20 @@ javac --release 17 -d out -encoding UTF-8 $(find src/main/java -name "*.java")
 java -cp out com.destiny.bazi.Main
 ```
 
-若要重新產生 `dist/destiny-bazi.jar`：
+## 打包與發佈新版本
 
 ```bash
-jar --create --file dist/destiny-bazi.jar --main-class com.destiny.bazi.Main -C out .
+./build.sh
 ```
+
+`build.sh` 會重新編譯並產生 `dist/destiny-bazi.jar`（manifest 內含
+`Implementation-Version`）與 `dist/destiny-bazi-<版本>.zip`（JAR、啟動檔、
+README、CHANGELOG）。發佈新版本的步驟：
+
+1. 修改 `src/main/java/com/destiny/bazi/AppInfo.java` 的 `VERSION`
+2. 在 `CHANGELOG.md` 新增該版本的變更紀錄
+3. 執行 `./build.sh`，提交 `dist/` 下的新檔案
+4. 建立版本標籤，例如 `git tag -a v1.0.1 -m "v1.0.1"` 並推送
 
 畫面文字一律使用繁體中文，並會優先選用系統上可用的繁體中文字型
 （依序嘗試 Microsoft JhengHei、PingFang TC、Heiti TC、Noto Sans TC 等，
@@ -102,7 +120,7 @@ jar --create --file dist/destiny-bazi.jar --main-class com.destiny.bazi.Main -C 
   位置影響）繪製成一張 PNG 圖片並存檔。
 - **顯示 → 放大字體 / 縮小字體**（Ctrl+= / Ctrl+-）：等比例調整標題、輸入
   欄位、四柱卡片與大運卡片文字大小；**重設字體大小**（Ctrl+0）恢復預設。
-- **說明 → 關於**：顯示排盤規則簡介。
+- **說明 → 關於**：顯示版本號與排盤規則簡介。
 
 ## 版面配置
 
@@ -121,10 +139,15 @@ jar --create --file dist/destiny-bazi.jar --main-class com.destiny.bazi.Main -C 
 ## 專案結構
 
 ```
+build.sh                      # 編譯並打包（產生 dist/ 下的 JAR 與 zip）
+CHANGELOG.md                  # 版本更新紀錄
+packaging/                    # 打包進 zip 的啟動檔（Windows / macOS・Linux）
 dist/
-└── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
+├── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
+└── destiny-bazi-1.0.0.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
+├── AppInfo.java              # 程式名稱與版本號（版本號唯一來源）
 ├── core/
 │   ├── GanZhi.java            # 天干地支五行生肖資料表
 │   ├── Pillar.java            # 單柱（干支）資料模型

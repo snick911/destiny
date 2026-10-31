@@ -1,5 +1,6 @@
 package com.destiny.bazi.ui;
 
+import com.destiny.bazi.AppInfo;
 import com.destiny.bazi.core.BaziCalculator;
 import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.DaYunPeriod;
@@ -109,7 +110,7 @@ public final class BaziFrame extends JFrame {
     private double fontScale = 1.0;
 
     public BaziFrame() {
-        super("子平八字排盤");
+        super(AppInfo.NAME + " v" + AppInfo.VERSION);
 
         int nowYear = Year.now().getValue();
         yearSpinner = new JSpinner(new SpinnerNumberModel(nowYear, 1900, 2100, 1));
@@ -238,7 +239,7 @@ public final class BaziFrame extends JFrame {
 
     private void showAbout() {
         JOptionPane.showMessageDialog(this,
-                "子平八字排盤\n\n"
+                AppInfo.NAME + "　版本 " + AppInfo.VERSION + "\n\n"
                         + "年柱以立春為界、月柱以十二節劃分、日柱以儒略日數推算、\n"
                         + "時柱以五鼠遁推算，並附十神與地支藏干十神。\n"
                         + "大運依性別與年干陰陽判定順排／逆排，起運歲數以\n"

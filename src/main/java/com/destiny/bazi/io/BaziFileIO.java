@@ -1,5 +1,6 @@
 package com.destiny.bazi.io;
 
+import com.destiny.bazi.AppInfo;
 import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.Gender;
 
@@ -15,8 +16,8 @@ import java.util.Properties;
 /**
  * 排盤結果的儲存與載入（純文字 Properties 格式，UTF-8 編碼）。
  *
- * <p>檔案儲存出生年月日時分（載入時據此重新排盤），以及當時算出的四柱作為
- * 可讀紀錄；載入時僅採用出生年月日時分，確保結果與目前的排盤邏輯一致。</p>
+ * <p>檔案儲存出生年月日時分（載入時據此重新排盤），以及儲存時的程式版本與
+ * 當時算出的四柱作為可讀紀錄；載入時僅採用出生年月日時分，確保結果與目前的排盤邏輯一致。</p>
  */
 public final class BaziFileIO {
 
@@ -25,6 +26,7 @@ public final class BaziFileIO {
 
     public static void save(File file, BirthInput input, BaziResult result) throws IOException {
         Properties props = new Properties();
+        props.setProperty("appVersion", AppInfo.VERSION);
         props.setProperty("year", String.valueOf(input.year()));
         props.setProperty("month", String.valueOf(input.month()));
         props.setProperty("day", String.valueOf(input.day()));
