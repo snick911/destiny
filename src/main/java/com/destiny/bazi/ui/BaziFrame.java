@@ -448,9 +448,11 @@ public final class BaziFrame extends JFrame {
         JPanel luckMassRow = new JPanel();
         luckMassRow.setOpaque(false);
         luckMassRow.setLayout(new BoxLayout(luckMassRow, BoxLayout.X_AXIS));
+        luckMassRow.add(Box.createHorizontalGlue());
         luckMassRow.add(luckFiveElementMassChart);
         luckMassRow.add(Box.createHorizontalStrut(24));
         luckMassRow.add(luckTenGodStats);
+        luckMassRow.add(Box.createHorizontalGlue());
         luckMassRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         content.add(comboRow);
@@ -488,9 +490,11 @@ public final class BaziFrame extends JFrame {
         JPanel massRow = new JPanel();
         massRow.setOpaque(false);
         massRow.setLayout(new BoxLayout(massRow, BoxLayout.X_AXIS));
+        massRow.add(Box.createHorizontalGlue());
         massRow.add(fiveElementMassChart);
         massRow.add(Box.createHorizontalStrut(24));
         massRow.add(fiveElementTenGodStats);
+        massRow.add(Box.createHorizontalGlue());
         massRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         panel.add(summarySectionTitle);

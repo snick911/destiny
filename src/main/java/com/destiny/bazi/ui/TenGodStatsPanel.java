@@ -36,6 +36,11 @@ public final class TenGodStatsPanel extends JPanel {
         }
     }
 
+    @Override
+    public Dimension getMaximumSize() {
+        return getPreferredSize();
+    }
+
     public void setFontScale(double scale) {
         baseFontSize = (float) (12 * scale);
         for (JLabel label : valueLabels.values()) {
