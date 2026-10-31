@@ -98,7 +98,8 @@ public final class BaziCalculator {
     /**
      * 大運排盤：依「陽男陰女順排、陰男陽女逆排」判定方向，
      * 以出生時刻與最近節氣的距離換算起運歲數（三日折一歲），
-     * 並從月柱起算，依方向逐期推算干支與十神。
+     * 並從月柱起算，依方向逐期推算干支與十神。出生日期加上起運歲數即為
+     * 交運日期，第一期大運自交運當年起算，其後每期十年。
      */
     public DaYunResult calculateDaYun(BaziResult baziResult, int year, int month, int day, int hour, int minute,
                                        Gender gender) {
@@ -130,17 +131,20 @@ public final class BaziCalculator {
         int monthBranchIdx = baziResult.getMonthPillar().getBranchIndex();
         int dayStemIdx = baziResult.getDayPillar().getStemIndex();
 
+        // 起運的月、天也要計入，否則出生月份加上起運月數跨年時，交運年份會早算一年。
+        LocalDate startDate = birth.toLocalDate().plusYears(startYears).plusMonths(startMonths).plusDays(startDays);
+
         List<DaYunPeriod> periods = new ArrayList<>();
         for (int k = 1; k <= DAYUN_PERIOD_COUNT; k++) {
             int stemIdx = GanZhi.mod(monthStemIdx + direction * k, 10);
             int branchIdx = GanZhi.mod(monthBranchIdx + direction * k, 12);
             Pillar pillar = new Pillar(stemIdx, branchIdx);
-            int periodStartAge = startYears + (k - 1) * 10;
+            int periodStartYear = startDate.getYear() + (k - 1) * 10;
             PillarTenGods tenGods = tenGodsFor(dayStemIdx, pillar, false);
-            periods.add(new DaYunPeriod(pillar, periodStartAge, tenGods));
+            periods.add(new DaYunPeriod(pillar, periodStartYear, periodStartYear - year, tenGods));
         }
 
-        return new DaYunResult(forward, startYears, startMonths, startDays, periods);
+        return new DaYunResult(forward, startYears, startMonths, startDays, startDate, periods);
     }
 
     /**
