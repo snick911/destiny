@@ -1,6 +1,11 @@
 package com.destiny.bazi.tests;
 
+import com.destiny.bazi.SelfTest;
+
 import java.awt.GraphicsEnvironment;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * 測試進入點：依序執行所有測試，任何一項失敗即以結束碼 1 結束。
@@ -24,8 +29,10 @@ public final class AllTests {
         Check.run("存檔與載入", FileIoTests::run);
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("－ 介面冒煙測試               略過（無顯示環境）");
+            System.out.println("－ 自我檢測（--self-test）      略過（無顯示環境）");
         } else {
             Check.run("介面冒煙測試", UiSmokeTests::run);
+            Check.run("自我檢測（--self-test）", AllTests::selfTest);
         }
 
         System.out.println();
@@ -36,5 +43,18 @@ public final class AllTests {
         System.out.println("失敗 " + Check.failures().size() + " 項：");
         Check.failures().stream().limit(50).forEach(f -> System.out.println("  - " + f));
         System.exit(1);
+    }
+
+    /** 與打包版本在 CI 上執行的 --self-test 相同，確認報告格式與結果。 */
+    private static void selfTest() throws Exception {
+        Path report = Files.createTempFile("bazi-selftest", ".txt");
+        try {
+            int code = SelfTest.run(report);
+            String content = Files.readString(report, StandardCharsets.UTF_8);
+            Check.equal("自我檢測結束碼", 0, code);
+            Check.isTrue("自我檢測報告", content.endsWith("result=OK\n") || content.endsWith("result=OK\r\n"), content);
+        } finally {
+            Files.deleteIfExists(report);
+        }
     }
 }

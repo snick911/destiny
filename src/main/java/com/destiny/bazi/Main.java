@@ -4,6 +4,7 @@ import com.destiny.bazi.ui.BaziFrame;
 import com.destiny.bazi.ui.DarkTheme;
 
 import javax.swing.*;
+import java.nio.file.Path;
 
 /**
  * 子平八字排盤程式進入點。
@@ -11,6 +12,9 @@ import javax.swing.*;
 public final class Main {
 
     public static void main(String[] args) {
+        if (args.length == 2 && SelfTest.FLAG.equals(args[0])) {
+            System.exit(SelfTest.run(Path.of(args[1])));
+        }
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel("javax.swing.plaf.nimbus.NimbusLookAndFeel");

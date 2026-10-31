@@ -57,8 +57,13 @@ java -cp out com.destiny.bazi.Main
 五鼠遁）、十神與藏干表、流年流月、大運（順逆、起運、交運日期與各期年份）、
 五行質量與十神統計、以傳統口訣查表的獨立實作交叉比對一萬個隨機命盤、
 存檔與載入，以及介面冒煙測試（開啟主視窗、切換所有大運／流年／流月、
-字體縮放、繪製匯出圖片）。介面測試需要顯示環境；沒有顯示環境時若有
-`xvfb-run` 會自動使用，否則略過。
+字體縮放、繪製匯出圖片）與自我檢測。介面測試需要顯示環境；沒有顯示環境時
+若有 `xvfb-run` 會自動使用，否則略過。
+
+打包後的程式也可自我檢測：`DestinyBazi.exe --self-test 報告.txt`（或
+`java -jar destiny-bazi.jar --self-test 報告.txt`）會開啟主視窗、排一張已知
+命盤並寫出報告（作業系統、Java 版本、選用字型、排盤結果），正常時結束碼為
+0、報告最後一行為 `result=OK`。GitHub Actions 以此驗證 Windows 免安裝版。
 
 也可只執行測試：
 
@@ -82,8 +87,8 @@ README、CHANGELOG）。發佈新版本的步驟：
 2. 在 `CHANGELOG.md` 新增該版本的變更紀錄
 3. 執行 `./build.sh`，提交 `dist/` 下的新檔案
 4. 合併到 `main`：GitHub Actions（`.github/workflows/release.yml`）會自動
-   執行測試、建置跨平台 zip 與 Windows 免安裝版（並實際啟動 `DestinyBazi.exe`
-   確認可開出主視窗），全部成功後建立 `v<版本>` 標籤與 Release 並附上
+   執行測試、建置跨平台 zip 與 Windows 免安裝版（並在 Windows 上執行
+   `DestinyBazi.exe --self-test` 驗證），全部成功後建立 `v<版本>` 標籤與 Release 並附上
    兩個 zip；版本號已發佈過則略過，不會覆蓋
 
 Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java.desktop`
@@ -193,6 +198,7 @@ src/test/java/com/destiny/bazi/tests/
 └── UiSmokeTests.java         # 介面冒煙測試
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
+├── SelfTest.java             # 自我檢測（--self-test，驗證打包版本可正常啟動）
 ├── AppInfo.java              # 程式名稱與版本號（版本號唯一來源）
 ├── core/
 │   ├── GanZhi.java            # 天干地支五行生肖資料表
