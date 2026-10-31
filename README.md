@@ -13,10 +13,15 @@
 
 ## 下載與執行（一般使用者）
 
-下載 `dist/destiny-bazi-1.0.0.zip` 並解壓縮，需已安裝 Java 17 以上：
+到 GitHub 的 [Releases](https://github.com/snick911/destiny/releases) 頁面下載：
 
-- **Windows**：雙擊 `run-windows.bat`
-- **macOS / Linux**：執行 `./run-mac-linux.sh`，或直接 `java -jar destiny-bazi.jar`
+- **Windows 免安裝版**（建議，**不需安裝 Java**）：
+  `destiny-bazi-<版本>-windows-x64.zip`，解壓縮後雙擊 `DestinyBazi\DestinyBazi.exe`。
+  程式未經數位簽章，第一次執行若出現 Windows SmartScreen 警告，請按
+  「其他資訊」→「仍要執行」。
+- **跨平台版**（需已安裝 Java 17 以上）：`destiny-bazi-<版本>.zip`，解壓縮後
+  Windows 雙擊 `run-windows.bat`；macOS / Linux 執行 `./run-mac-linux.sh`，
+  或直接 `java -jar destiny-bazi.jar`。
 
 ## 執行（直接使用已建置的 JAR）
 
@@ -53,7 +58,13 @@ README、CHANGELOG）。發佈新版本的步驟：
 1. 修改 `src/main/java/com/destiny/bazi/AppInfo.java` 的 `VERSION`
 2. 在 `CHANGELOG.md` 新增該版本的變更紀錄
 3. 執行 `./build.sh`，提交 `dist/` 下的新檔案
-4. 建立版本標籤，例如 `git tag -a v1.0.1 -m "v1.0.1"` 並推送
+4. 合併到 `main`：GitHub Actions（`.github/workflows/release.yml`）會自動
+   建置跨平台 zip 與 Windows 免安裝版，建立 `v<版本>` 標籤與 Release 並附上
+   兩個 zip；版本號已發佈過則略過，不會覆蓋
+
+Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java.desktop`
+模組的精簡 Java 執行環境），因此只在 GitHub Actions 的 Windows 主機上建置；
+對 `main` 開的 PR 也會先跑一次建置，確認可以打包。
 
 畫面文字一律使用繁體中文，並會優先選用系統上可用的繁體中文字型
 （依序嘗試 Microsoft JhengHei、PingFang TC、Heiti TC、Noto Sans TC 等，
@@ -139,6 +150,7 @@ README、CHANGELOG）。發佈新版本的步驟：
 ## 專案結構
 
 ```
+.github/workflows/release.yml # 自動打包（含 Windows 免安裝版）與發佈 Release
 build.sh                      # 編譯並打包（產生 dist/ 下的 JAR 與 zip）
 CHANGELOG.md                  # 版本更新紀錄
 packaging/                    # 打包進 zip 的啟動檔（Windows / macOS・Linux）
