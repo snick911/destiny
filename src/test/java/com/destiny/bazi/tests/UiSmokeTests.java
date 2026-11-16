@@ -7,9 +7,11 @@ import com.destiny.bazi.ui.DarkTheme;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -48,6 +50,27 @@ final class UiSmokeTests {
             frame.setVisible(true);
             Check.equal("視窗標題", AppInfo.NAME + " v" + AppInfo.VERSION, frame.getTitle());
 
+            // 「日」上限依年月自動調整，超出時改為月底
+            JSpinner yearSp = (JSpinner) field(frame, "yearSpinner");
+            JSpinner monthSp = (JSpinner) field(frame, "monthSpinner");
+            JSpinner daySp = (JSpinner) field(frame, "daySpinner");
+            yearSp.setValue(1951);
+            monthSp.setValue(1);
+            daySp.setValue(31);
+            monthSp.setValue(2);
+            Check.equal("1951年2月日上限", 28, ((SpinnerNumberModel) daySp.getModel()).getMaximum());
+            Check.equal("超出月底的日改為月底", 28, daySp.getValue());
+            yearSp.setValue(1952);
+            Check.equal("閏年2月日上限", 29, ((SpinnerNumberModel) daySp.getModel()).getMaximum());
+            monthSp.setValue(3);
+            Check.equal("3月日上限", 31, ((SpinnerNumberModel) daySp.getModel()).getMaximum());
+
+            // 改變輸入欄位即自動重新排盤（不必按「排盤」）
+            String summary = ((JLabel) field(frame, "summaryLabel")).getText();
+            daySp.setValue(15);
+            Check.isTrue("改日期自動重排", !summary.equals(((JLabel) field(frame, "summaryLabel")).getText()),
+                    "命盤摘要未更新：" + summary);
+
             ((JSpinner) field(frame, "yearSpinner")).setValue(1950);
             ((JSpinner) field(frame, "monthSpinner")).setValue(9);
             ((JSpinner) field(frame, "daySpinner")).setValue(4);
@@ -67,6 +90,31 @@ final class UiSmokeTests {
             JComboBox<?> liuyue = (JComboBox<?>) field(frame, "liuyueSelectCombo");
             Check.equal("大運選單項數", 8, dayun.getItemCount());
             Check.equal("首運選單文字", "1959~1968年（9~18歲）　癸未", dayun.getItemAt(0));
+
+            // 預設定位到今天所在的大運、流年、流月（本測試命盤的大運涵蓋 1959~2038 年）
+            int thisYear = LocalDate.now().getYear();
+            if (thisYear > 1960 && thisYear < 2038) {
+                Check.isTrue("預設選到目前大運", String.valueOf(dayun.getSelectedItem()).contains("● 目前"),
+                        String.valueOf(dayun.getSelectedItem()));
+                Check.isTrue("預設選到今年", String.valueOf(liunian.getSelectedItem()).contains("● 今年"),
+                        String.valueOf(liunian.getSelectedItem()));
+                Check.isTrue("預設選到本月", String.valueOf(liuyue.getSelectedItem()).contains("● 本月"),
+                        String.valueOf(liuyue.getSelectedItem()));
+                int currentIdx = dayun.getSelectedIndex();
+                String badge = ((JLabel) field(dayunPanels.get(currentIdx), "badgeLabel")).getText();
+                Check.isTrue("目前大運卡片標記", badge.contains("目前"), badge);
+            }
+
+            // 點選大運卡片即選取該運，且只有該卡片呈選取狀態
+            for (int i = 0; i < dayunPanels.size(); i++) {
+                JComponent card = (JComponent) dayunPanels.get(i);
+                card.dispatchEvent(new MouseEvent(card, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(),
+                        0, 5, 5, 1, false, MouseEvent.BUTTON1));
+                Check.equal("點選第" + (i + 1) + "張大運卡片", i, dayun.getSelectedIndex());
+                for (int j = 0; j < dayunPanels.size(); j++) {
+                    Check.equal("第" + (j + 1) + "張卡片選取狀態", i == j, field(dayunPanels.get(j), "selected"));
+                }
+            }
 
             for (int i = 0; i < dayun.getItemCount(); i++) {
                 dayun.setSelectedIndex(i);

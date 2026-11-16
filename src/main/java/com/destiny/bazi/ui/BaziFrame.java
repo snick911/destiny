@@ -18,15 +18,22 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.DefaultFormatter;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Year;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -70,9 +77,9 @@ public final class BaziFrame extends JFrame {
     private final JLabel dayunTitleLabel = new JLabel("大運", SwingConstants.CENTER);
     private final JLabel dayunNoteLabel = new JLabel(" ", SwingConstants.CENTER);
 
-    private final JComboBox<String> dayunSelectCombo = new JComboBox<>();
-    private final JComboBox<String> liunianSelectCombo = new JComboBox<>();
-    private final JComboBox<String> liuyueSelectCombo = new JComboBox<>();
+    private final JComboBox<String> dayunSelectCombo = fittedComboBox();
+    private final JComboBox<String> liunianSelectCombo = fittedComboBox();
+    private final JComboBox<String> liuyueSelectCombo = fittedComboBox();
     private final PillarPanel selectedDaYunPanel = new PillarPanel("大運");
     private final PillarPanel selectedLiuNianPanel = new PillarPanel("流年");
     private final PillarPanel selectedLiuYuePanel = new PillarPanel("流月");
@@ -81,6 +88,12 @@ public final class BaziFrame extends JFrame {
     private final FiveElementBarChart luckFiveElementMassChart = new FiveElementBarChart();
     private final TenGodStatsPanel luckTenGodStats = new TenGodStatsPanel();
     private boolean updatingCombos = false;
+    /** 程式自行設定輸入欄位時（載入檔案、調整日上限）暫停自動重新排盤。 */
+    private boolean suppressAutoCalc = false;
+
+    /** 「今天」所屬的流年（以立春為界）與流月索引（0=正月寅），用於預設定位與標示目前大運。 */
+    private int todayLiuNianYear;
+    private int todayLiuYueIndex;
 
     private List<DaYunPeriod> currentPeriods = new ArrayList<>();
     private final List<Integer> currentLiuNianYears = new ArrayList<>();
@@ -120,22 +133,31 @@ public final class BaziFrame extends JFrame {
         spinners = new JSpinner[]{yearSpinner, monthSpinner, daySpinner, minuteSpinner};
         for (JSpinner sp : spinners) {
             sp.setEditor(new JSpinner.NumberEditor(sp, "#"));
-            sp.getEditor().getComponent(0).setBackground(DarkTheme.BG_CARD);
-            sp.getEditor().getComponent(0).setForeground(DarkTheme.FG_PRIMARY);
+            DarkTheme.styleSpinner(sp);
+            // 輸入合法數字即生效（不必按 Enter 或移開焦點），配合下方的即時重新排盤。
+            JFormattedTextField field = ((JSpinner.DefaultEditor) sp.getEditor()).getTextField();
+            if (field.getFormatter() instanceof DefaultFormatter formatter) {
+                formatter.setCommitsOnValidEdit(true);
+            }
         }
-        hourCombo.setBackground(DarkTheme.BG_CARD);
-        hourCombo.setForeground(DarkTheme.FG_PRIMARY);
-        hourCombo.addActionListener(e -> calculate());
-        genderCombo.setBackground(DarkTheme.BG_CARD);
-        genderCombo.setForeground(DarkTheme.FG_PRIMARY);
-        genderCombo.addActionListener(e -> calculate());
+        // 年、月變動時先依該月天數調整「日」的上限，再重新排盤；任何輸入變動都立即重排。
+        yearSpinner.addChangeListener(e -> {
+            updateDayLimit();
+            autoCalculate();
+        });
+        monthSpinner.addChangeListener(e -> {
+            updateDayLimit();
+            autoCalculate();
+        });
+        daySpinner.addChangeListener(e -> autoCalculate());
+        minuteSpinner.addChangeListener(e -> autoCalculate());
 
-        dayunSelectCombo.setBackground(DarkTheme.BG_CARD);
-        dayunSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
-        liunianSelectCombo.setBackground(DarkTheme.BG_CARD);
-        liunianSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
-        liuyueSelectCombo.setBackground(DarkTheme.BG_CARD);
-        liuyueSelectCombo.setForeground(DarkTheme.FG_PRIMARY);
+        for (JComboBox<?> combo : List.of(hourCombo, genderCombo, dayunSelectCombo, liunianSelectCombo, liuyueSelectCombo)) {
+            DarkTheme.styleComboBox(combo);
+        }
+        hourCombo.addActionListener(e -> autoCalculate());
+        genderCombo.addActionListener(e -> autoCalculate());
+        dayPanel.setEmphasized(true);
         dayunSelectCombo.addActionListener(e -> {
             if (!updatingCombos) {
                 onDaYunSelectionChanged();
@@ -159,8 +181,51 @@ public final class BaziFrame extends JFrame {
         pack();
         setLocationRelativeTo(null);
 
+        updateDayLimit();
         applyFontScale();
         calculate();
+    }
+
+    private void autoCalculate() {
+        if (!suppressAutoCalc) {
+            calculate();
+        }
+    }
+
+    /** 依目前年、月將「日」的上限設為該月天數，超出時自動改為月底，避免出現不存在的日期。 */
+    private void updateDayLimit() {
+        int year = (int) yearSpinner.getValue();
+        int month = (int) monthSpinner.getValue();
+        int length = YearMonth.of(year, month).lengthOfMonth();
+        SpinnerNumberModel model = (SpinnerNumberModel) daySpinner.getModel();
+        boolean previous = suppressAutoCalc;
+        suppressAutoCalc = true;
+        try {
+            model.setMaximum(length);
+            if ((int) model.getValue() > length) {
+                model.setValue(length);
+            }
+        } finally {
+            suppressAutoCalc = previous;
+        }
+    }
+
+    /**
+     * 查詢區用的下拉選單：最大不超過所需寬度（視窗很寬時不被拉長），
+     * 空間不足時可縮小到 60px（截斷尾端文字），寬度隨字體縮放即時更新。
+     */
+    private static JComboBox<String> fittedComboBox() {
+        return new JComboBox<>() {
+            @Override
+            public Dimension getMaximumSize() {
+                return getPreferredSize();
+            }
+
+            @Override
+            public Dimension getMinimumSize() {
+                return new Dimension(60, getPreferredSize().height);
+            }
+        };
     }
 
     /** 產生「時」下拉選單的選項：0~23 時，並附上對應的時辰地支。 */
@@ -273,11 +338,18 @@ public final class BaziFrame extends JFrame {
         center.add(buildSelectionPanel());
         exportPanel = center;
 
-        JScrollPane scrollPane = new JScrollPane(center);
+        // 內容寬度跟隨視窗（只垂直捲動），並靠上排列：視窗高於內容時不拉伸各區塊卡片。
+        JPanel holder = new WidthTrackingPanel();
+        holder.setOpaque(false);
+        holder.add(center, BorderLayout.NORTH);
+
+        JScrollPane scrollPane = new JScrollPane(holder);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.setBackground(DarkTheme.BG_APP);
         scrollPane.getViewport().setBackground(DarkTheme.BG_APP);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        DarkTheme.styleScrollPane(scrollPane);
         scrollPane.setPreferredSize(new Dimension(780, 680));
         root.add(scrollPane, BorderLayout.CENTER);
 
@@ -391,30 +463,71 @@ public final class BaziFrame extends JFrame {
         header.add(Box.createVerticalStrut(4));
         header.add(dayunNoteLabel);
 
-        JPanel row = new JPanel();
-        row.setOpaque(false);
-        row.setLayout(new BoxLayout(row, BoxLayout.X_AXIS));
+        DaYunRow row = new DaYunRow(BaziCalculator.DAYUN_PERIOD_COUNT);
         for (int i = 0; i < BaziCalculator.DAYUN_PERIOD_COUNT; i++) {
             PillarPanel p = new PillarPanel("大運", true);
+            int index = i;
+            p.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            p.setToolTipText("點選查看此大運的流年、流月");
+            p.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (index < dayunSelectCombo.getItemCount()) {
+                        dayunSelectCombo.setSelectedIndex(index);
+                    }
+                }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    p.setHovered(true);
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    p.setHovered(false);
+                }
+            });
             dayunPanels.add(p);
             row.add(p);
-            if (i < BaziCalculator.DAYUN_PERIOD_COUNT - 1) {
-                row.add(Box.createHorizontalStrut(10));
-            }
         }
 
-        // 高度依大運卡片實際所需（含字體縮放）再加上水平捲軸，避免卡片底部的藏干被裁切。
+        // 視窗夠寬時卡片平均分配寬度、不出現捲軸；不夠寬（或字體放大）時才可水平捲動。
+        // 高度依卡片實際所需，需要捲軸時再加上捲軸高度，避免卡片底部的藏干被裁切。
         JScrollPane scroll = new JScrollPane(row,
                 JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED) {
             @Override
             public Dimension getPreferredSize() {
-                int height = row.getPreferredSize().height + getHorizontalScrollBar().getPreferredSize().height + 4;
+                int height = row.getPreferredSize().height + 4;
+                if (!row.fitsViewport()) {
+                    height += getHorizontalScrollBar().getPreferredSize().height;
+                }
                 return new Dimension(680, height);
             }
         };
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
         scroll.setBorder(BorderFactory.createEmptyBorder());
+        DarkTheme.styleScrollPane(scroll);
+        scroll.getHorizontalScrollBar().setUnitIncrement(16);
+        // 視窗寬度改變而跨越「放得下／放不下」時，重新計算高度（加入或移除捲軸空間）。
+        scroll.getViewport().addComponentListener(new ComponentAdapter() {
+            private boolean lastFits = row.fitsViewport();
+
+            @Override
+            public void componentResized(ComponentEvent e) {
+                boolean fits = row.fitsViewport();
+                if (fits != lastFits) {
+                    lastFits = fits;
+                    // 捲動區本身是 validate root，需從外層卡片重新排版，高度變化才會生效。
+                    SwingUtilities.invokeLater(() -> {
+                        if (scroll.getParent() instanceof JComponent parent) {
+                            parent.revalidate();
+                            parent.repaint();
+                        }
+                    });
+                }
+            }
+        });
 
         panel.add(header, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
@@ -432,17 +545,27 @@ public final class BaziFrame extends JFrame {
         content.setOpaque(false);
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 
-        JPanel comboRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 6));
+        // 三個選單依各自所需寬度按比例分配：視窗夠寬時完整顯示並置中，
+        // 視窗較窄時等比例縮小（僅截斷尾端標記文字），不會被擠出畫面。
+        JPanel comboRow = new JPanel(new GridBagLayout());
         comboRow.setOpaque(false);
-        dayunSelectCombo.setPreferredSize(new Dimension(250, 30));
-        dayunSelectCombo.setMaximumSize(new Dimension(270, 30));
-        liunianSelectCombo.setPreferredSize(new Dimension(200, 30));
-        liunianSelectCombo.setMaximumSize(new Dimension(220, 30));
-        liuyueSelectCombo.setPreferredSize(new Dimension(150, 30));
-        liuyueSelectCombo.setMaximumSize(new Dimension(170, 30));
-        comboRow.add(labeledComponent("選擇大運", dayunSelectCombo));
-        comboRow.add(labeledComponent("選擇流年", liunianSelectCombo));
-        comboRow.add(labeledComponent("選擇流月", liuyueSelectCombo));
+        comboRow.setBorder(new EmptyBorder(6, 0, 6, 0));
+        // 以最長可能的選項文字決定寬度（含「目前／今年／本月」標記），避免文字被截斷，
+        // 也避免切換命盤時選單寬度跳動；寬度會隨字體縮放自動調整。
+        dayunSelectCombo.setPrototypeDisplayValue("2100~2109年（100~109歲）　甲子　● 目前");
+        liunianSelectCombo.setPrototypeDisplayValue("2100年（100歲）　甲子　● 今年");
+        liuyueSelectCombo.setPrototypeDisplayValue("十二月　甲子　● 本月");
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridy = 0;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.insets = new Insets(0, 7, 0, 7);
+        String[] comboLabels = {"選擇大運", "選擇流年", "選擇流月"};
+        List<JComboBox<String>> selectCombos = List.of(dayunSelectCombo, liunianSelectCombo, liuyueSelectCombo);
+        for (int i = 0; i < selectCombos.size(); i++) {
+            gc.gridx = i;
+            gc.weightx = selectCombos.get(i).getPreferredSize().width;
+            comboRow.add(labeledComponent(comboLabels[i], selectCombos.get(i)), gc);
+        }
 
         JPanel panelsRow = new JPanel(new GridLayout(1, 3, 14, 0));
         panelsRow.setOpaque(false);
@@ -598,6 +721,7 @@ public final class BaziFrame extends JFrame {
         if (input == null) {
             return;
         }
+        updateToday();
         BaziResult result = calculator.calculate(input.year(), input.month(), input.day(), input.hour(), input.minute());
         renderResult(result);
         DaYunResult dayun = renderDaYun(result, input);
@@ -606,6 +730,20 @@ public final class BaziFrame extends JFrame {
         currentInput = input;
         currentPeriods = dayun.getPeriods();
         populateDaYunCombo();
+    }
+
+    /** 以今天的日期排盤，取得今天所屬的流年（立春為界）與流月（節氣為界）。 */
+    private void updateToday() {
+        LocalDateTime now = LocalDateTime.now();
+        BaziResult today = calculator.calculate(now.getYear(), now.getMonthValue(), now.getDayOfMonth(),
+                now.getHour(), now.getMinute());
+        todayLiuNianYear = today.getEffectiveYear();
+        // 月支索引：寅=2 為正月（索引 0），丑=1 為十二月（索引 11）。
+        todayLiuYueIndex = (today.getMonthPillar().getBranchIndex() + 10) % 12;
+    }
+
+    private boolean isCurrentPeriod(DaYunPeriod period) {
+        return todayLiuNianYear >= period.getStartYear() && todayLiuNianYear <= period.getEndYear();
     }
 
     private void renderResult(BaziResult result) {
@@ -663,6 +801,7 @@ public final class BaziFrame extends JFrame {
             panel.setTitle("<html><center>" + period.getStartYear() + "~" + period.getEndYear()
                     + "<br>" + period.getStartAge() + "~" + period.getEndAge() + "歲</center></html>");
             panel.setPillar(period.getPillar(), period.getTenGods());
+            panel.setBadge(isCurrentPeriod(period) ? "● 目前" : null);
         }
         return dayun;
     }
@@ -672,12 +811,23 @@ public final class BaziFrame extends JFrame {
     private void populateDaYunCombo() {
         updatingCombos = true;
         dayunSelectCombo.removeAllItems();
-        for (DaYunPeriod period : currentPeriods) {
+        int selectIdx = 0;
+        for (int i = 0; i < currentPeriods.size(); i++) {
+            DaYunPeriod period = currentPeriods.get(i);
+            boolean current = isCurrentPeriod(period);
+            if (current) {
+                selectIdx = i;
+            }
             dayunSelectCombo.addItem(period.getStartYear() + "~" + period.getEndYear() + "年（"
-                    + period.getStartAge() + "~" + period.getEndAge() + "歲）　" + period.getPillar().getGanZhi());
+                    + period.getStartAge() + "~" + period.getEndAge() + "歲）　" + period.getPillar().getGanZhi()
+                    + (current ? "　● 目前" : ""));
+        }
+        // 尚未起運時停在第一運；已走完全部大運時停在最後一運。
+        if (!currentPeriods.isEmpty() && todayLiuNianYear > currentPeriods.get(currentPeriods.size() - 1).getEndYear()) {
+            selectIdx = currentPeriods.size() - 1;
         }
         if (dayunSelectCombo.getItemCount() > 0) {
-            dayunSelectCombo.setSelectedIndex(0);
+            dayunSelectCombo.setSelectedIndex(selectIdx);
         }
         updatingCombos = false;
         onDaYunSelectionChanged();
@@ -689,6 +839,9 @@ public final class BaziFrame extends JFrame {
             return;
         }
         DaYunPeriod period = currentPeriods.get(idx);
+        for (int i = 0; i < dayunPanels.size(); i++) {
+            dayunPanels.get(i).setSelected(i == idx);
+        }
         selectedDaYunPanel.setTitle("大運 " + period.getStartYear() + "~" + period.getEndYear() + "年");
         selectedDaYunPanel.setPillar(period.getPillar(), period.getTenGods());
 
@@ -704,10 +857,13 @@ public final class BaziFrame extends JFrame {
             int age = calendarYear - currentInput.year();
             currentLiuNianYears.add(calendarYear);
             LiuNianYear liuNian = calculator.calculateLiuNian(calendarYear, dayStemIdx);
-            liunianSelectCombo.addItem(calendarYear + "年（" + age + "歲）　" + liuNian.getPillar().getGanZhi());
+            boolean thisYear = calendarYear == todayLiuNianYear;
+            liunianSelectCombo.addItem(calendarYear + "年（" + age + "歲）　" + liuNian.getPillar().getGanZhi()
+                    + (thisYear ? "　● 今年" : ""));
         }
         if (liunianSelectCombo.getItemCount() > 0) {
-            liunianSelectCombo.setSelectedIndex(0);
+            int thisYearIdx = currentLiuNianYears.indexOf(todayLiuNianYear);
+            liunianSelectCombo.setSelectedIndex(Math.max(0, thisYearIdx));
         }
         updatingCombos = false;
         onLiuNianSelectionChanged();
@@ -743,10 +899,12 @@ public final class BaziFrame extends JFrame {
         int dayStemIdx = currentResult.getDayPillar().getStemIndex();
         for (int m = 0; m < 12; m++) {
             LiuYueMonth liuYue = calculator.calculateLiuYue(liuNianYear, m, dayStemIdx);
-            liuyueSelectCombo.addItem(liuYue.getMonthName() + "　" + liuYue.getPillar().getGanZhi());
+            boolean thisMonth = liuNianYear == todayLiuNianYear && m == todayLiuYueIndex;
+            liuyueSelectCombo.addItem(liuYue.getMonthName() + "　" + liuYue.getPillar().getGanZhi()
+                    + (thisMonth ? "　● 本月" : ""));
         }
         if (liuyueSelectCombo.getItemCount() > 0) {
-            liuyueSelectCombo.setSelectedIndex(0);
+            liuyueSelectCombo.setSelectedIndex(liuNianYear == todayLiuNianYear ? todayLiuYueIndex : 0);
         }
         updatingCombos = false;
         onLiuYueSelectionChanged();
@@ -864,16 +1022,99 @@ public final class BaziFrame extends JFrame {
         File file = chooser.getSelectedFile();
         try {
             BirthInput input = BaziFileIO.load(file);
-            yearSpinner.setValue(input.year());
-            monthSpinner.setValue(input.month());
-            daySpinner.setValue(input.day());
-            hourCombo.setSelectedIndex(input.hour());
-            minuteSpinner.setValue(input.minute());
-            genderCombo.setSelectedItem(input.gender());
+            // 逐欄設定時暫停自動重排，全部設定完成後只排盤一次。
+            suppressAutoCalc = true;
+            try {
+                yearSpinner.setValue(input.year());
+                monthSpinner.setValue(input.month());
+                updateDayLimit();
+                daySpinner.setValue(input.day());
+                hourCombo.setSelectedIndex(input.hour());
+                minuteSpinner.setValue(input.minute());
+                genderCombo.setSelectedItem(input.gender());
+            } finally {
+                suppressAutoCalc = false;
+            }
             calculate();
         } catch (IOException | IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, "載入失敗：" + ex.getMessage(),
                     "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * 大運卡片列：以等寬網格排列；捲動區夠寬時跟隨捲動區寬度（不出現捲軸），
+     * 不夠寬時維持卡片所需寬度並改為水平捲動。
+     */
+    private static final class DaYunRow extends JPanel implements Scrollable {
+
+        DaYunRow(int columns) {
+            super(new GridLayout(1, columns, 8, 0));
+            setOpaque(false);
+        }
+
+        boolean fitsViewport() {
+            return getParent() instanceof JViewport viewport
+                    && viewport.getWidth() > 0
+                    && viewport.getWidth() >= getPreferredSize().width;
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return visibleRect.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return fitsViewport();
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
+
+    /** 寬度永遠等於捲動區可視寬度的內容面板：較窄的視窗會壓縮內容，而不是出現水平捲動。 */
+    private static final class WidthTrackingPanel extends JPanel implements Scrollable {
+
+        WidthTrackingPanel() {
+            super(new BorderLayout());
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return orientation == SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport viewport && viewport.getHeight() > getPreferredSize().height;
         }
     }
 }
