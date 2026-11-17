@@ -37,6 +37,9 @@ public final class AllTests {
         Check.run("大運與交運", DaYunTests::run);
         Check.run("五行質量與十神統計", DaYunTests::massAndCounts);
         Check.run("獨立實作交叉比對", CrossCheckTests::run);
+        Check.run("農曆換算（對照曆表）", LunarCalendarTests::run);
+        Check.run("紫微斗數排盤", ZiWeiTests::run);
+        Check.run("紫微獨立實作交叉比對", ZiWeiTests::crossCheck);
         Check.run("存檔與載入", FileIoTests::run);
         Check.run("人員資料", FileIoTests::personStore);
         if (GraphicsEnvironment.isHeadless()) {

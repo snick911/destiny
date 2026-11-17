@@ -10,10 +10,15 @@ import com.destiny.bazi.core.GanZhi;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.core.LiuNianYear;
 import com.destiny.bazi.core.LiuYueMonth;
+import com.destiny.bazi.core.LunarCalendar;
 import com.destiny.bazi.core.MonthOrder;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
 import com.destiny.bazi.io.PersonStore;
+import com.destiny.bazi.ziwei.Decade;
+import com.destiny.bazi.ziwei.LuckOverlay;
+import com.destiny.bazi.ziwei.ZiWeiCalculator;
+import com.destiny.bazi.ziwei.ZiWeiChart;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -40,8 +45,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 子平八字排盤主視窗：輸入西元年月日時，計算並顯示四柱與十神；
- * 並提供選單列以儲存／載入排盤結果，以及調整畫面字體大小。
+ * 排盤主視窗：輸入西元年月日時與性別，可切換「八字」（四柱、十神、大運流年）與
+ * 「紫微斗數」（十二宮命盤、四化、大限流年流月）兩種排盤；
+ * 並提供選單列以儲存／載入排盤結果、匯出圖片，以及調整畫面字體大小。
  */
 public final class BaziFrame extends JFrame {
 
@@ -108,13 +114,47 @@ public final class BaziFrame extends JFrame {
     private BaziResult currentResult;
     private BirthInput currentInput;
 
-    private final JLabel titleLabel = new JLabel("子平八字排盤", SwingConstants.CENTER);
-    private final JLabel subtitleLabel = new JLabel("輸入出生年、月、日、時、性別，推算四柱、十神與大運", SwingConstants.CENTER);
+    private static final String BAZI_TITLE = "子平八字排盤";
+    private static final String BAZI_SUBTITLE = "輸入出生年、月、日、時、性別，推算四柱、十神與大運";
+    private static final String ZIWEI_TITLE = "紫微斗數排盤";
+    private static final String ZIWEI_SUBTITLE = "輸入出生年、月、日、時、性別，排出十二宮星曜、四化與大限流年";
+    private static final String[] ZIWEI_DEPTHS = {"本命盤", "大限盤", "流年盤", "流月盤"};
+    private static final int ZIWEI_DEPTH_DECADE = 1;
+    private static final int ZIWEI_DEPTH_YEAR = 2;
+    private static final int ZIWEI_DEPTH_MONTH = 3;
+
+    private final JLabel titleLabel = new JLabel(BAZI_TITLE, SwingConstants.CENTER);
+    private final JLabel subtitleLabel = new JLabel(BAZI_SUBTITLE, SwingConstants.CENTER);
     private final JLabel inputSectionTitle = new JLabel("排盤輸入", SwingConstants.CENTER);
     private final JLabel fourPillarsSectionTitle = new JLabel("四柱", SwingConstants.CENTER);
     private final JLabel summarySectionTitle = new JLabel("命盤摘要", SwingConstants.CENTER);
+    private final JLabel ziweiSectionTitle = new JLabel("紫微斗數命盤", SwingConstants.CENTER);
     private final List<JLabel> sectionTitleLabels = List.of(
-            inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, selectionSectionTitle, summarySectionTitle);
+            inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, selectionSectionTitle, summarySectionTitle,
+            ziweiSectionTitle);
+
+    // ---- 八字／紫微斗數模式切換 ----
+    private final JToggleButton baziModeButton = new JToggleButton("八字");
+    private final JToggleButton ziweiModeButton = new JToggleButton("紫微斗數");
+    private final JPanel modeContent = new JPanel(new BorderLayout());
+    private JComponent baziContent;
+    private JComponent ziweiContent;
+    private boolean ziweiMode = false;
+
+    // ---- 紫微斗數 ----
+    private final ZiWeiCalculator ziWeiCalculator = new ZiWeiCalculator();
+    private final ZiWeiChartPanel ziWeiChartPanel = new ZiWeiChartPanel();
+    private final JComboBox<String> ziweiDepthCombo = fittedComboBox();
+    private final JComboBox<String> ziweiDecadeCombo = fittedComboBox();
+    private final JComboBox<String> ziweiYearCombo = fittedComboBox();
+    private final JComboBox<String> ziweiMonthCombo = fittedComboBox();
+    private final JLabel ziweiNoteLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final List<Integer> ziweiYears = new ArrayList<>();
+    private boolean updatingZiWeiCombos = false;
+    private ZiWeiChart currentZiWei;
+    /** 「今天」所屬的農曆年與月（流年、流月預設定位用）。 */
+    private int todayLunarYear;
+    private int todayLunarMonth;
     private final List<JLabel> inputLabels = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
@@ -209,6 +249,39 @@ public final class BaziFrame extends JFrame {
                 onLiuYueSelectionChanged();
             }
         });
+
+        for (String depth : ZIWEI_DEPTHS) {
+            ziweiDepthCombo.addItem(depth);
+        }
+        ziweiDepthCombo.setSelectedIndex(ZIWEI_DEPTH_YEAR);
+        for (JComboBox<?> combo : List.of(ziweiDepthCombo, ziweiDecadeCombo, ziweiYearCombo, ziweiMonthCombo)) {
+            DarkTheme.styleComboBox(combo);
+        }
+        ziweiDepthCombo.addActionListener(e -> {
+            if (!updatingZiWeiCombos) {
+                refreshZiWeiOverlays();
+            }
+        });
+        // 使用者選擇大限／流年／流月時，盤面至少疊到該層，選擇才看得到效果。
+        ziweiDecadeCombo.addActionListener(e -> {
+            if (!updatingZiWeiCombos) {
+                raiseZiWeiDepth(ZIWEI_DEPTH_DECADE);
+                onZiWeiDecadeChanged();
+            }
+        });
+        ziweiYearCombo.addActionListener(e -> {
+            if (!updatingZiWeiCombos) {
+                raiseZiWeiDepth(ZIWEI_DEPTH_YEAR);
+                onZiWeiYearChanged();
+            }
+        });
+        ziweiMonthCombo.addActionListener(e -> {
+            if (!updatingZiWeiCombos) {
+                raiseZiWeiDepth(ZIWEI_DEPTH_MONTH);
+                refreshZiWeiOverlays();
+            }
+        });
+        ziWeiChartPanel.setPalaceClickListener(this::onZiWeiPalaceClicked);
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(buildMenuBar());
@@ -313,10 +386,15 @@ public final class BaziFrame extends JFrame {
         JMenu menu = new JMenu("顯示");
         DarkTheme.styleMenu(menu);
 
+        JMenuItem baziMode = menuItem("八字排盤", KeyEvent.VK_1, e -> setZiWeiMode(false));
+        JMenuItem ziweiModeItem = menuItem("紫微斗數", KeyEvent.VK_2, e -> setZiWeiMode(true));
         JMenuItem zoomIn = menuItem("放大字體", KeyEvent.VK_EQUALS, e -> adjustFontScale(FONT_SCALE_STEP));
         JMenuItem zoomOut = menuItem("縮小字體", KeyEvent.VK_MINUS, e -> adjustFontScale(-FONT_SCALE_STEP));
         JMenuItem zoomReset = menuItem("重設字體大小", KeyEvent.VK_0, e -> resetFontScale());
 
+        menu.add(baziMode);
+        menu.add(ziweiModeItem);
+        menu.addSeparator();
         menu.add(zoomIn);
         menu.add(zoomOut);
         menu.addSeparator();
@@ -352,7 +430,12 @@ public final class BaziFrame extends JFrame {
                         + "出生時刻與最近節氣的距離換算（三日折一歲），\n"
                         + "出生日期加上起運歲數即為交運日期，大運自交運當年起算。\n"
                         + "選定大運後可進一步選擇流年、流月，查看該年/月的\n"
-                        + "干支、十神與地支藏干。",
+                        + "干支、十神與地支藏干。\n\n"
+                        + "紫微斗數以農曆年月日時排盤（農曆以天文計算推得），\n"
+                        + "安命身宮、五行局、十四主星、六吉六煞、祿存天馬與雜曜，\n"
+                        + "標示生年四化；大限依五行局起歲、陽男陰女順行，\n"
+                        + "流年以斗君定流月，並可疊上大限、流年、流月的宮位、\n"
+                        + "四化與祿羊陀馬魁鉞。",
                 "關於", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -365,18 +448,30 @@ public final class BaziFrame extends JFrame {
 
         root.add(buildHeader(), BorderLayout.NORTH);
 
+        JPanel bazi = new JPanel();
+        bazi.setOpaque(false);
+        bazi.setLayout(new BoxLayout(bazi, BoxLayout.Y_AXIS));
+        bazi.add(buildFourPillarsPanel());
+        bazi.add(Box.createVerticalStrut(22));
+        bazi.add(buildSummaryPanel());
+        bazi.add(Box.createVerticalStrut(22));
+        bazi.add(buildDaYunPanel());
+        bazi.add(Box.createVerticalStrut(22));
+        bazi.add(buildSelectionPanel());
+        baziContent = bazi;
+        ziweiContent = buildZiWeiPanel();
+
+        // 輸入區兩種模式共用；下方依模式只放入八字或紫微斗數其中一組內容
+        // （不用 CardLayout，避免較高的那組撐高另一組的版面與匯出圖片）。
+        modeContent.setOpaque(false);
+        modeContent.add(baziContent, BorderLayout.CENTER);
+
         JPanel center = new JPanel();
         center.setOpaque(false);
         center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
         center.add(buildInputPanel());
         center.add(Box.createVerticalStrut(22));
-        center.add(buildFourPillarsPanel());
-        center.add(Box.createVerticalStrut(22));
-        center.add(buildSummaryPanel());
-        center.add(Box.createVerticalStrut(22));
-        center.add(buildDaYunPanel());
-        center.add(Box.createVerticalStrut(22));
-        center.add(buildSelectionPanel());
+        center.add(modeContent);
         exportPanel = center;
 
         // 內容寬度跟隨視窗（只垂直捲動），並靠上排列：視窗高於內容時不拉伸各區塊卡片。
@@ -408,10 +503,39 @@ public final class BaziFrame extends JFrame {
         subtitleLabel.setForeground(DarkTheme.FG_SECONDARY);
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        ButtonGroup modeGroup = new ButtonGroup();
+        JPanel modeRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        modeRow.setOpaque(false);
+        for (JToggleButton b : List.of(baziModeButton, ziweiModeButton)) {
+            DarkTheme.styleToggleButton(b);
+            modeGroup.add(b);
+            modeRow.add(b);
+        }
+        baziModeButton.setSelected(true);
+        baziModeButton.setToolTipText("子平八字：四柱、十神、大運流年（Ctrl+1）");
+        ziweiModeButton.setToolTipText("紫微斗數：十二宮命盤、四化、大限流年流月（Ctrl+2）");
+        baziModeButton.addActionListener(e -> setZiWeiMode(false));
+        ziweiModeButton.addActionListener(e -> setZiWeiMode(true));
+        modeRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         panel.add(titleLabel);
         panel.add(Box.createVerticalStrut(6));
         panel.add(subtitleLabel);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(modeRow);
         return panel;
+    }
+
+    /** 切換八字／紫微斗數：輸入與排盤結果共用，只更換下方顯示的內容與標題。 */
+    private void setZiWeiMode(boolean ziwei) {
+        ziweiMode = ziwei;
+        (ziwei ? ziweiModeButton : baziModeButton).setSelected(true);
+        titleLabel.setText(ziwei ? ZIWEI_TITLE : BAZI_TITLE);
+        subtitleLabel.setText(ziwei ? ZIWEI_SUBTITLE : BAZI_SUBTITLE);
+        modeContent.removeAll();
+        modeContent.add(ziwei ? ziweiContent : baziContent, BorderLayout.CENTER);
+        modeContent.revalidate();
+        modeContent.repaint();
     }
 
     private JComponent buildInputPanel() {
@@ -719,6 +843,60 @@ public final class BaziFrame extends JFrame {
         return panel;
     }
 
+    private JComponent buildZiWeiPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        DarkTheme.styleCard(panel);
+
+        ziweiSectionTitle.setForeground(DarkTheme.ACCENT);
+        panel.add(ziweiSectionTitle, BorderLayout.NORTH);
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+
+        // 盤面（疊到哪一層）與大限／流年／流月選單，依各自所需寬度按比例分配
+        JPanel comboRow = new JPanel(new GridBagLayout());
+        comboRow.setOpaque(false);
+        comboRow.setBorder(new EmptyBorder(2, 0, 6, 0));
+        ziweiDepthCombo.setPrototypeDisplayValue("流月盤　");
+        ziweiDecadeCombo.setPrototypeDisplayValue("甲子 115~124歲（2100~2109）　● 目前");
+        ziweiYearCombo.setPrototypeDisplayValue("2100年 甲子（100歲）　● 今年");
+        ziweiMonthCombo.setPrototypeDisplayValue("十二月 甲子　● 本月");
+        ziweiDepthCombo.setToolTipText("本命盤只顯示本命；大限盤、流年盤、流月盤依序疊上所選的大限、流年、流月");
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridy = 0;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.insets = new Insets(0, 6, 0, 6);
+        String[] labels = {"盤面", "選擇大限", "選擇流年", "選擇流月"};
+        List<JComboBox<String>> combos = List.of(ziweiDepthCombo, ziweiDecadeCombo, ziweiYearCombo, ziweiMonthCombo);
+        for (int i = 0; i < combos.size(); i++) {
+            gc.gridx = i;
+            gc.weightx = combos.get(i).getPreferredSize().width;
+            comboRow.add(labeledComponent(labels[i], combos.get(i)), gc);
+        }
+
+        ziweiNoteLabel.setForeground(DarkTheme.FG_SECONDARY);
+        ziweiNoteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // 命盤寬度隨視窗調整（有上限），置中顯示
+        JPanel chartRow = new JPanel();
+        chartRow.setOpaque(false);
+        chartRow.setLayout(new BoxLayout(chartRow, BoxLayout.X_AXIS));
+        chartRow.add(Box.createHorizontalGlue());
+        chartRow.add(ziWeiChartPanel);
+        chartRow.add(Box.createHorizontalGlue());
+        chartRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        comboRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(comboRow);
+        content.add(ziweiNoteLabel);
+        content.add(Box.createVerticalStrut(10));
+        content.add(chartRow);
+
+        panel.add(content, BorderLayout.CENTER);
+        return panel;
+    }
+
     // ---------------------------------------------------------------- 字體縮放
 
     private void adjustFontScale(double delta) {
@@ -782,6 +960,14 @@ public final class BaziFrame extends JFrame {
         selectedDaYunPanel.setFontScale(fontScale);
         selectedLiuNianPanel.setFontScale(fontScale);
         selectedLiuYuePanel.setFontScale(fontScale);
+        for (JToggleButton b : List.of(baziModeButton, ziweiModeButton)) {
+            b.setFont(b.getFont().deriveFont(Font.BOLD, (float) (SECONDARY_BUTTON_SIZE * fontScale)));
+        }
+        for (JComboBox<String> combo : List.of(ziweiDepthCombo, ziweiDecadeCombo, ziweiYearCombo, ziweiMonthCombo)) {
+            combo.setFont(combo.getFont().deriveFont((float) (SELECT_COMBO_SIZE * fontScale)));
+        }
+        ziweiNoteLabel.setFont(ziweiNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        ziWeiChartPanel.setFontScale(fontScale);
         revalidate();
         repaint();
     }
@@ -820,9 +1006,14 @@ public final class BaziFrame extends JFrame {
         currentInput = input;
         currentPeriods = dayun.getPeriods();
         populateDaYunCombo();
+
+        renderZiWei(input);
     }
 
-    /** 以今天的日期排盤，取得今天所屬的流年（立春為界）與流月（節氣為界）。 */
+    /**
+     * 以今天的日期排盤，取得今天所屬的流年（立春為界）與流月（節氣為界），
+     * 以及紫微斗數用的農曆年、月（正月初一為界；閏月十六日起算下個月）。
+     */
     private void updateToday() {
         LocalDateTime now = LocalDateTime.now();
         BaziResult today = calculator.calculate(now.getYear(), now.getMonthValue(), now.getDayOfMonth(),
@@ -830,6 +1021,11 @@ public final class BaziFrame extends JFrame {
         todayLiuNianYear = today.getEffectiveYear();
         // 月支索引：寅=2 為正月（索引 0），丑=1 為十二月（索引 11）。
         todayLiuYueIndex = (today.getMonthPillar().getBranchIndex() + 10) % 12;
+
+        LunarCalendar.LunarDate lunarToday = LunarCalendar.fromSolar(now.toLocalDate());
+        todayLunarYear = lunarToday.year();
+        todayLunarMonth = lunarToday.leap() && lunarToday.day() > ZiWeiCalculator.LEAP_MONTH_SPLIT_DAY
+                ? lunarToday.month() % 12 + 1 : lunarToday.month();
     }
 
     private boolean isCurrentPeriod(DaYunPeriod period) {
@@ -873,6 +1069,7 @@ public final class BaziFrame extends JFrame {
             return;
         }
         String name = BirthInput.normalizeName(nameField.getText());
+        ziWeiChartPanel.setPersonName(name);
         summaryLabel.setText((name.isEmpty() ? "" : "姓名：" + name + "　｜　") + String.format(
                 "八字：%s年 %s月 %s日 %s時　｜　生肖：%s",
                 currentResult.getYearPillar().getGanZhi(),
@@ -1021,6 +1218,132 @@ public final class BaziFrame extends JFrame {
         selectedLiuYuePanel.setPillar(liuYue.getPillar(), liuYue.getTenGods());
     }
 
+    // ---------------------------------------------------------------- 紫微斗數
+
+    private void renderZiWei(BirthInput input) {
+        currentZiWei = ziWeiCalculator.calculate(input.year(), input.month(), input.day(),
+                input.hour(), input.minute(), input.gender());
+        ziWeiChartPanel.setChart(currentZiWei);
+        ziWeiChartPanel.setPersonName(BirthInput.normalizeName(nameField.getText()));
+
+        LunarCalendar.LunarDate lunar = currentZiWei.getLunarDate();
+        StringBuilder note = new StringBuilder(String.format("農曆 %s年%s%s %s時排盤，%s%s，大限%s。",
+                lunar.yearGanZhi(), lunar.monthName(), lunar.dayName(),
+                GanZhi.BRANCHES[currentZiWei.getHourBranch()], currentZiWei.getYinYangGender(),
+                currentZiWei.getBureau().label(), currentZiWei.isForward() ? "順行" : "逆行"));
+        if (currentZiWei.isLateZiShift()) {
+            note.append("　23 時屬晚子時，以次日排盤。");
+        }
+        if (currentZiWei.isLeapMonthAsNext()) {
+            note.append("　閏月十六日以後，以下個月排盤。");
+        }
+        note.append("　點選宮位可切換大限。");
+        ziweiNoteLabel.setText(note.toString());
+
+        populateZiWeiDecadeCombo();
+    }
+
+    private void populateZiWeiDecadeCombo() {
+        updatingZiWeiCombos = true;
+        ziweiDecadeCombo.removeAllItems();
+        int todayAge = currentZiWei.ageInYear(todayLunarYear);
+        for (Decade d : currentZiWei.getDecades()) {
+            ziweiDecadeCombo.addItem(String.format("%s %d~%d歲（%d~%d）%s", d.ganZhi(), d.startAge(), d.endAge(),
+                    d.startYear(), d.endYear(), d.containsAge(todayAge) ? "　● 目前" : ""));
+        }
+        ziweiDecadeCombo.setSelectedIndex(currentZiWei.decadeIndexForAge(todayAge));
+        updatingZiWeiCombos = false;
+        onZiWeiDecadeChanged();
+    }
+
+    /** 大限改變：流年清單換成該限的年份（第一限另含起限前的童限年份），預設今年或該限首年。 */
+    private void onZiWeiDecadeChanged() {
+        int idx = ziweiDecadeCombo.getSelectedIndex();
+        if (currentZiWei == null || idx < 0) {
+            return;
+        }
+        Decade d = currentZiWei.getDecades().get(idx);
+        updatingZiWeiCombos = true;
+        ziweiYearCombo.removeAllItems();
+        ziweiYears.clear();
+        int from = idx == 0 ? currentZiWei.getLunarDate().year() : d.startYear();
+        for (int y = from; y <= d.endYear(); y++) {
+            ziweiYears.add(y);
+            ziweiYearCombo.addItem(String.format("%d年 %s%s（%d歲）%s", y,
+                    GanZhi.STEMS[GanZhi.mod(y - 4, 10)], GanZhi.BRANCHES[GanZhi.mod(y - 4, 12)],
+                    currentZiWei.ageInYear(y), y == todayLunarYear ? "　● 今年" : ""));
+        }
+        int select = ziweiYears.indexOf(todayLunarYear);
+        if (select < 0) {
+            select = Math.max(0, ziweiYears.indexOf(d.startYear()));
+        }
+        ziweiYearCombo.setSelectedIndex(select);
+        updatingZiWeiCombos = false;
+        onZiWeiYearChanged();
+    }
+
+    /** 流年改變：流月清單換成該年正月~十二月（干支依五虎遁），預設本月或正月。 */
+    private void onZiWeiYearChanged() {
+        int idx = ziweiYearCombo.getSelectedIndex();
+        if (currentZiWei == null || idx < 0 || idx >= ziweiYears.size()) {
+            return;
+        }
+        int year = ziweiYears.get(idx);
+        updatingZiWeiCombos = true;
+        ziweiMonthCombo.removeAllItems();
+        for (int m = 1; m <= 12; m++) {
+            LuckOverlay monthOverlay = ziWeiCalculator.month(currentZiWei, year, m);
+            boolean thisMonth = year == todayLunarYear && m == todayLunarMonth;
+            ziweiMonthCombo.addItem(LunarCalendar.MONTH_NAMES[m - 1] + " " + monthOverlay.ganZhi()
+                    + (thisMonth ? "　● 本月" : ""));
+        }
+        ziweiMonthCombo.setSelectedIndex(year == todayLunarYear ? todayLunarMonth - 1 : 0);
+        updatingZiWeiCombos = false;
+        refreshZiWeiOverlays();
+    }
+
+    /** 依「盤面」決定疊上哪幾層（大限、流年、流月），並更新命盤。 */
+    private void refreshZiWeiOverlays() {
+        if (currentZiWei == null) {
+            return;
+        }
+        int depth = ziweiDepthCombo.getSelectedIndex();
+        int decadeIdx = ziweiDecadeCombo.getSelectedIndex();
+        int yearIdx = ziweiYearCombo.getSelectedIndex();
+        int monthIdx = ziweiMonthCombo.getSelectedIndex();
+        LuckOverlay decade = depth >= ZIWEI_DEPTH_DECADE && decadeIdx >= 0
+                ? ziWeiCalculator.decade(currentZiWei, decadeIdx) : null;
+        boolean hasYear = yearIdx >= 0 && yearIdx < ziweiYears.size();
+        LuckOverlay year = depth >= ZIWEI_DEPTH_YEAR && hasYear
+                ? ziWeiCalculator.year(currentZiWei, ziweiYears.get(yearIdx)) : null;
+        LuckOverlay month = depth >= ZIWEI_DEPTH_MONTH && hasYear && monthIdx >= 0
+                ? ziWeiCalculator.month(currentZiWei, ziweiYears.get(yearIdx), monthIdx + 1) : null;
+        ziWeiChartPanel.setOverlays(decade, year, month);
+    }
+
+    private void raiseZiWeiDepth(int minDepth) {
+        if (ziweiDepthCombo.getSelectedIndex() < minDepth) {
+            boolean previous = updatingZiWeiCombos;
+            updatingZiWeiCombos = true;
+            ziweiDepthCombo.setSelectedIndex(minDepth);
+            updatingZiWeiCombos = previous;
+        }
+    }
+
+    /** 點選宮位：切換到該宮的大限（已是該限時只確保盤面疊上大限）。 */
+    private void onZiWeiPalaceClicked(int branch) {
+        if (currentZiWei == null) {
+            return;
+        }
+        int index = currentZiWei.decadeAt(branch).index();
+        raiseZiWeiDepth(ZIWEI_DEPTH_DECADE);
+        if (index != ziweiDecadeCombo.getSelectedIndex()) {
+            ziweiDecadeCombo.setSelectedIndex(index);
+        } else {
+            refreshZiWeiOverlays();
+        }
+    }
+
     // ---------------------------------------------------------------- 匯出圖片
 
     private void exportImage() {
@@ -1045,25 +1368,7 @@ public final class BaziFrame extends JFrame {
             return;
         }
 
-        // 依內容實際所需大小繪製，不受目前視窗大小或捲動位置影響。
-        Dimension originalSize = exportPanel.getSize();
-        Dimension targetSize = exportPanel.getPreferredSize();
-
-        BufferedImage image = new BufferedImage(targetSize.width, targetSize.height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = image.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2.setColor(DarkTheme.BG_APP);
-        g2.fillRect(0, 0, targetSize.width, targetSize.height);
-
-        exportPanel.setSize(targetSize);
-        exportPanel.validate();
-        exportPanel.printAll(g2);
-        g2.dispose();
-
-        exportPanel.setSize(originalSize);
-        exportPanel.validate();
-
+        BufferedImage image = renderExportImage();
         try {
             ImageIO.write(image, "png", file);
             JOptionPane.showMessageDialog(this, "已匯出至：" + file.getName(),
@@ -1072,6 +1377,41 @@ public final class BaziFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "匯出失敗：" + ex.getMessage(),
                     "錯誤", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * 依內容實際所需大小繪製整頁（輸入區＋目前模式的內容），不受目前視窗大小或捲動位置影響。
+     * 紫微命盤的高度取決於可用寬度（窄視窗會縮小字級），因此先依所需寬度排版一次，
+     * 再以該寬度下所需的高度重新排版後繪製。
+     */
+    private BufferedImage renderExportImage() {
+        Dimension originalSize = exportPanel.getSize();
+        Dimension targetSize = exportPanel.getPreferredSize();
+        exportPanel.setSize(targetSize);
+        exportPanel.validate();
+        // 命盤寬度改變後，其所需高度也跟著改變：清除各層版面快取後重新取得高度。
+        ziWeiChartPanel.invalidate();
+        targetSize = new Dimension(targetSize.width, exportPanel.getPreferredSize().height);
+        exportPanel.setSize(targetSize);
+        exportPanel.validate();
+
+        BufferedImage image = new BufferedImage(targetSize.width, targetSize.height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = image.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setColor(DarkTheme.BG_APP);
+        g2.fillRect(0, 0, targetSize.width, targetSize.height);
+        exportPanel.printAll(g2);
+        g2.dispose();
+
+        // 還原視窗中的版面：同樣兩次排版（先還原寬度、再依寬度取得高度），並請外層重新配置。
+        exportPanel.setSize(originalSize);
+        for (int pass = 0; pass < 2; pass++) {
+            ziWeiChartPanel.invalidate();
+            exportPanel.validate();
+        }
+        ziWeiChartPanel.revalidate();
+        return image;
     }
 
     // ---------------------------------------------------------------- 儲存／載入
@@ -1128,10 +1468,10 @@ public final class BaziFrame extends JFrame {
 
     // ---------------------------------------------------------------- 人員資料
 
-    /** 預設檔名：有姓名時以「姓名_出生日期」命名，否則為「八字_出生日期」。 */
+    /** 預設檔名：有姓名時以「姓名_出生日期」命名，否則為「八字_出生日期」（紫微斗數模式為「紫微_」）。 */
     private String defaultFileBaseName() {
         String name = BirthInput.normalizeName(nameField.getText()).replaceAll("[\\\\/:*?\"<>|]", "_");
-        return String.format("%s_%04d%02d%02d", name.isEmpty() ? "八字" : name,
+        return String.format("%s_%04d%02d%02d", name.isEmpty() ? (ziweiMode ? "紫微" : "八字") : name,
                 (int) yearSpinner.getValue(), (int) monthSpinner.getValue(), (int) daySpinner.getValue());
     }
 

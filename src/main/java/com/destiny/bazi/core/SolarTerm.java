@@ -193,7 +193,7 @@ public final class SolarTerm {
      * ΔT＝TT－UT（秒），採 Espenak &amp; Meeus（NASA）分段多項式（1600~2150 年），
      * 範圍外以長期拋物線估算。各段多項式只在自身區間內有效，超出後誤差會急遽發散。
      */
-    private static double deltaTSeconds(double jd) {
+    static double deltaTSeconds(double jd) {
         double y = 2000.0 + (jd - 2451545.0) / 365.25;
         double t;
         if (y < 1600 || y >= 2150) {
@@ -249,7 +249,7 @@ public final class SolarTerm {
     }
 
     /** 將北京時間轉換為世界時（UT）儒略日數（含時分秒）。 */
-    private static double toJulianDate(LocalDateTime beijingTime) {
+    static double toJulianDate(LocalDateTime beijingTime) {
         LocalDateTime utc = beijingTime.minusHours(8);
         long jdn = toJulianDayNumber(utc.toLocalDate());
         double dayFraction = utc.toLocalTime().toSecondOfDay() / 86400.0;
@@ -257,7 +257,7 @@ public final class SolarTerm {
     }
 
     /** 將世界時（UT）儒略日數轉換回北京時間。 */
-    private static LocalDateTime fromJulianDate(double jd) {
+    static LocalDateTime fromJulianDate(double jd) {
         double shifted = jd + 0.5;
         long jdn = (long) Math.floor(shifted);
         double dayFraction = shifted - jdn;

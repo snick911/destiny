@@ -166,6 +166,36 @@ public final class DarkTheme {
         button.setBorder(new EmptyBorder(8, 16, 8, 16));
     }
 
+    /**
+     * 扁平切換按鈕（用於「八字／紫微斗數」模式切換）：選取時以強調色填滿，
+     * 未選取時為卡片底色加細框線。
+     */
+    public static void styleToggleButton(JToggleButton button) {
+        button.setUI(new BasicButtonUI() {
+            @Override
+            public void paint(Graphics g, JComponent c) {
+                AbstractButton b = (AbstractButton) c;
+                ButtonModel m = b.getModel();
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color base = m.isSelected() ? ACCENT_DIM : BG_CARD_HIGHLIGHT;
+                g2.setColor(m.isPressed() ? base.darker() : m.isRollover() && !m.isSelected() ? base.brighter() : base);
+                g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 10, 10);
+                g2.setColor(m.isSelected() ? ACCENT : BORDER);
+                g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 10, 10);
+                g2.dispose();
+                super.paint(g, c);
+            }
+        });
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setRolloverEnabled(true);
+        button.setForeground(FG_PRIMARY);
+        button.setFocusPainted(false);
+        button.setBorder(new EmptyBorder(7, 22, 7, 22));
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    }
+
     private static void styleFlatButton(JButton button, Color base, Color outline) {
         Color hover = base.brighter();
         Color pressed = base.darker();
