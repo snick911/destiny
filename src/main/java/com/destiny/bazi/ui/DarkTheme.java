@@ -38,10 +38,10 @@ public final class DarkTheme {
                 GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
         for (String candidate : TC_FONT_CANDIDATES) {
             if (available.contains(candidate)) {
-                return new Font(candidate, Font.PLAIN, 13);
+                return new Font(candidate, Font.PLAIN, 14);
             }
         }
-        return new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+        return new Font(Font.SANS_SERIF, Font.PLAIN, 14);
     }
 
     public static final Color BG_APP = new Color(0x1D, 0x21, 0x27);
@@ -153,10 +153,22 @@ public final class DarkTheme {
         item.setForeground(FG_PRIMARY);
     }
 
-    /** 扁平強調按鈕：不使用 Nimbus 的漸層外觀，滑鼠移入／按下時改變底色。 */
+    /** 扁平強調按鈕（主要動作）：不使用 Nimbus 的漸層外觀，滑鼠移入／按下時改變底色。 */
     public static void styleAccentButton(JButton button) {
-        Color hover = ACCENT_DIM.brighter();
-        Color pressed = ACCENT_DIM.darker();
+        styleFlatButton(button, ACCENT_DIM, null);
+        button.setBorder(new EmptyBorder(10, 22, 10, 22));
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 15f));
+    }
+
+    /** 扁平次要按鈕：卡片底色加細框線，滑鼠移入時轉亮。 */
+    public static void styleSecondaryButton(JButton button) {
+        styleFlatButton(button, BG_CARD_HIGHLIGHT, BORDER);
+        button.setBorder(new EmptyBorder(8, 16, 8, 16));
+    }
+
+    private static void styleFlatButton(JButton button, Color base, Color outline) {
+        Color hover = base.brighter();
+        Color pressed = base.darker();
         button.setUI(new BasicButtonUI() {
             @Override
             public void paint(Graphics g, JComponent c) {
@@ -164,8 +176,12 @@ public final class DarkTheme {
                 ButtonModel m = b.getModel();
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(m.isPressed() ? pressed : m.isRollover() ? hover : ACCENT_DIM);
+                g2.setColor(!b.isEnabled() ? BG_CARD : m.isPressed() ? pressed : m.isRollover() ? hover : base);
                 g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 10, 10);
+                if (outline != null) {
+                    g2.setColor(outline);
+                    g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 10, 10);
+                }
                 g2.dispose();
                 super.paint(g, c);
             }
@@ -175,9 +191,72 @@ public final class DarkTheme {
         button.setRolloverEnabled(true);
         button.setForeground(FG_PRIMARY);
         button.setFocusPainted(false);
-        button.setBorder(new EmptyBorder(10, 22, 10, 22));
-        button.setFont(button.getFont().deriveFont(Font.BOLD, 15f));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    }
+
+    /** 暗色文字輸入框：細框線加內距，取得焦點時框線轉為強調色。 */
+    public static void styleTextField(JTextField field) {
+        field.setBackground(BG_CARD);
+        field.setForeground(FG_PRIMARY);
+        field.setCaretColor(FG_PRIMARY);
+        field.setSelectionColor(ACCENT_DIM);
+        field.setSelectedTextColor(FG_PRIMARY);
+        field.setBorder(textFieldBorder(BORDER));
+        field.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                field.setBorder(textFieldBorder(ACCENT_DIM));
+            }
+
+            @Override
+            public void focusLost(FocusEvent e) {
+                field.setBorder(textFieldBorder(BORDER));
+            }
+        });
+    }
+
+    private static javax.swing.border.Border textFieldBorder(Color color) {
+        return BorderFactory.createCompoundBorder(new LineBorder(color, 1, true), new EmptyBorder(3, 8, 3, 8));
+    }
+
+    /** 暗色表格：交錯列底色、左右內距、選取列以強調色標示，表頭改為扁平樣式。 */
+    public static void styleTable(JTable table) {
+        table.setBackground(BG_CARD);
+        table.setForeground(FG_PRIMARY);
+        table.setGridColor(BORDER);
+        table.setShowVerticalLines(false);
+        table.setShowHorizontalLines(false);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setSelectionBackground(ACCENT_DIM);
+        table.setSelectionForeground(FG_PRIMARY);
+        table.setFillsViewportHeight(true);
+        table.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(t, value, isSelected, false, row, column);
+                setBorder(new EmptyBorder(0, 10, 0, 10));
+                setBackground(isSelected ? ACCENT_DIM : row % 2 == 0 ? BG_CARD : BG_PANEL);
+                setForeground(FG_PRIMARY);
+                return this;
+            }
+        });
+        table.getTableHeader().setDefaultRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                super.getTableCellRendererComponent(t, value, false, false, row, column);
+                setFont(t.getFont().deriveFont(Font.BOLD));
+                setOpaque(true);
+                setBackground(BG_PANEL);
+                setForeground(ACCENT);
+                setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER), new EmptyBorder(6, 10, 6, 10)));
+                return this;
+            }
+        });
+        table.getTableHeader().setBackground(BG_PANEL);
+        table.getTableHeader().setReorderingAllowed(false);
     }
 
     // ------------------------------------------------------------ 扁平化原生元件
@@ -265,7 +344,7 @@ public final class DarkTheme {
     /** 下拉選單項目加上左右內距，清單中滑鼠所在項目以強調色底標示。 */
     private static final class PaddedComboRenderer extends BasicComboBoxRenderer {
         @Override
-        public Component getListCellRendererComponent(JList list, Object value, int index,
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                       boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             setBorder(new EmptyBorder(3, 8, 3, 8));

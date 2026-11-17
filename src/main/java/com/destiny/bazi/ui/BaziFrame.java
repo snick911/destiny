@@ -13,6 +13,7 @@ import com.destiny.bazi.core.LiuYueMonth;
 import com.destiny.bazi.core.MonthOrder;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
+import com.destiny.bazi.io.PersonStore;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -44,14 +45,20 @@ import java.util.Locale;
  */
 public final class BaziFrame extends JFrame {
 
-    private static final float TITLE_SIZE = 26f;
-    private static final float SUBTITLE_SIZE = 13f;
-    private static final float INPUT_LABEL_SIZE = 13f;
-    private static final float SPINNER_SIZE = 14f;
-    private static final float BUTTON_SIZE = 15f;
-    private static final float SUMMARY_SIZE = 14f;
-    private static final float NOTE_SIZE = 12f;
-    private static final float SECTION_TITLE_SIZE = 15f;
+    private static final float TITLE_SIZE = 28f;
+    private static final float SUBTITLE_SIZE = 15f;
+    private static final float INPUT_LABEL_SIZE = 15f;
+    private static final float SPINNER_SIZE = 16f;
+    private static final float BUTTON_SIZE = 16f;
+    private static final float SECONDARY_BUTTON_SIZE = 15f;
+    private static final float SELECT_COMBO_SIZE = 15f;
+    private static final float SUMMARY_SIZE = 16f;
+    private static final float NOTE_SIZE = 14f;
+    private static final float SECTION_TITLE_SIZE = 17f;
+
+    /** 輸入元件的基準尺寸（字體縮放時等比例調整，避免放大後文字被裁切）。 */
+    private static final String BASE_SIZE_KEY = "destiny.baseSize";
+    private static final int INPUT_HEIGHT = 34;
 
     private static final double FONT_SCALE_MIN = 0.7;
     private static final double FONT_SCALE_MAX = 1.8;
@@ -111,6 +118,14 @@ public final class BaziFrame extends JFrame {
     private final List<JLabel> inputLabels = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
+    private final JTextField nameField = new JTextField();
+    private final JButton savePersonButton = new JButton("儲存人員");
+    private final JButton openPeopleButton = new JButton("人員查詢…");
+    private final JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final Timer statusTimer = new Timer(4000, e -> statusLabel.setText(" "));
+    private final PersonStore personStore = PersonStore.openDefault();
+    private PersonDialog personDialog;
+
     private final JLabel summaryLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel noteLabel = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel monthOrderLabel = new JLabel(" ", SwingConstants.CENTER);
@@ -158,6 +173,27 @@ public final class BaziFrame extends JFrame {
         hourCombo.addActionListener(e -> autoCalculate());
         genderCombo.addActionListener(e -> autoCalculate());
         dayPanel.setEmphasized(true);
+
+        DarkTheme.styleTextField(nameField);
+        nameField.setToolTipText("選填；填寫後可按「儲存人員」存入人員資料");
+        nameField.addActionListener(e -> savePerson());
+        nameField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                refreshSummary();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                refreshSummary();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                refreshSummary();
+            }
+        });
+        statusTimer.setRepeats(false);
         dayunSelectCombo.addActionListener(e -> {
             if (!updatingCombos) {
                 onDaYunSelectionChanged();
@@ -254,11 +290,16 @@ public final class BaziFrame extends JFrame {
         JMenu menu = new JMenu("檔案");
         DarkTheme.styleMenu(menu);
 
+        JMenuItem savePerson = menuItem("儲存人員", KeyEvent.VK_D, e -> savePerson());
+        JMenuItem openPeople = menuItem("人員查詢...", KeyEvent.VK_F, e -> openPeople());
         JMenuItem save = menuItem("儲存結果...", KeyEvent.VK_S, e -> saveResult());
         JMenuItem load = menuItem("載入結果...", KeyEvent.VK_O, e -> loadResult());
         JMenuItem exportImage = menuItem("匯出圖片...", KeyEvent.VK_E, e -> exportImage());
         JMenuItem exit = menuItem("結束", -1, e -> dispose());
 
+        menu.add(savePerson);
+        menu.add(openPeople);
+        menu.addSeparator();
         menu.add(save);
         menu.add(load);
         menu.addSeparator();
@@ -380,35 +421,71 @@ public final class BaziFrame extends JFrame {
         inputSectionTitle.setForeground(DarkTheme.ACCENT);
         panel.add(inputSectionTitle, BorderLayout.NORTH);
 
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 10));
+        // 第一列：姓名與人員資料操作；第二列：出生資料與排盤；第三列：操作結果提示。
+        JPanel personRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 4));
+        personRow.setOpaque(false);
+        setBaseSize(nameField, 200);
+        personRow.add(labeledComponent("姓名", nameField));
+        DarkTheme.styleSecondaryButton(savePersonButton);
+        DarkTheme.styleSecondaryButton(openPeopleButton);
+        savePersonButton.setToolTipText("以姓名為準存入人員資料，同名者會詢問是否覆蓋（Ctrl+D）");
+        openPeopleButton.setToolTipText("開啟人員查詢視窗，選擇人員帶入資料（Ctrl+F）");
+        savePersonButton.addActionListener(e -> savePerson());
+        openPeopleButton.addActionListener(e -> openPeople());
+        personRow.add(labeledComponent(" ", savePersonButton));
+        personRow.add(labeledComponent(" ", openPeopleButton));
+
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 4));
         row.setOpaque(false);
 
-        row.add(labeledSpinner("年", yearSpinner));
-        row.add(labeledSpinner("月", monthSpinner));
-        row.add(labeledSpinner("日", daySpinner));
+        row.add(labeledSpinner("年", yearSpinner, 84));
+        row.add(labeledSpinner("月", monthSpinner, 64));
+        row.add(labeledSpinner("日", daySpinner, 64));
 
-        hourCombo.setPreferredSize(new Dimension(110, 30));
-        hourCombo.setMaximumSize(new Dimension(120, 30));
+        setBaseSize(hourCombo, 140);
         row.add(labeledComponent("時", hourCombo));
 
-        row.add(labeledSpinner("分", minuteSpinner));
+        row.add(labeledSpinner("分", minuteSpinner, 64));
 
-        genderCombo.setPreferredSize(new Dimension(70, 30));
-        genderCombo.setMaximumSize(new Dimension(80, 30));
+        setBaseSize(genderCombo, 72);
         row.add(labeledComponent("性別", genderCombo));
 
         DarkTheme.styleAccentButton(calcButton);
         calcButton.addActionListener(e -> calculate());
-        row.add(calcButton);
+        row.add(labeledComponent(" ", calcButton));
 
-        panel.add(row, BorderLayout.CENTER);
+        statusLabel.setForeground(DarkTheme.ACCENT);
+
+        JPanel rows = new JPanel();
+        rows.setOpaque(false);
+        rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+        rows.add(personRow);
+        rows.add(row);
+        statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        rows.add(statusLabel);
+
+        panel.add(rows, BorderLayout.CENTER);
         return panel;
     }
 
-    private JComponent labeledSpinner(String label, JSpinner spinner) {
-        spinner.setPreferredSize(new Dimension(70, 30));
-        spinner.setMaximumSize(new Dimension(80, 30));
+    private JComponent labeledSpinner(String label, JSpinner spinner, int width) {
+        setBaseSize(spinner, width);
         return labeledComponent(label, spinner);
+    }
+
+    /** 記錄輸入元件在字體縮放 1.0 時的寬度，實際尺寸於 applyFontScale 依比例設定。 */
+    private static void setBaseSize(JComponent c, int width) {
+        c.putClientProperty(BASE_SIZE_KEY, width);
+    }
+
+    private void scaleInputSize(JComponent c) {
+        Object base = c.getClientProperty(BASE_SIZE_KEY);
+        if (base instanceof Integer width) {
+            Dimension size = new Dimension((int) Math.round(width * fontScale),
+                    (int) Math.round(INPUT_HEIGHT * fontScale));
+            c.setPreferredSize(size);
+            c.setMaximumSize(size);
+        }
     }
 
     private JComponent labeledComponent(String label, JComponent component) {
@@ -664,11 +741,24 @@ public final class BaziFrame extends JFrame {
             Component editor = sp.getEditor().getComponent(0);
             editor.setFont(editor.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         }
+        for (JComponent c : List.of(nameField, yearSpinner, monthSpinner, daySpinner, minuteSpinner,
+                hourCombo, genderCombo)) {
+            scaleInputSize(c);
+        }
+        nameField.setFont(nameField.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        for (JButton b : List.of(savePersonButton, openPeopleButton)) {
+            b.setFont(b.getFont().deriveFont((float) (SECONDARY_BUTTON_SIZE * fontScale)));
+        }
+        statusLabel.setFont(statusLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        if (personDialog != null) {
+            personDialog.setFontScale(fontScale);
+        }
         hourCombo.setFont(hourCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
         genderCombo.setFont(genderCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
-        dayunSelectCombo.setFont(dayunSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
-        liunianSelectCombo.setFont(liunianSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
-        liuyueSelectCombo.setFont(liuyueSelectCombo.getFont().deriveFont((float) (SPINNER_SIZE * fontScale)));
+        // 查詢選單選項文字較長，字級略小於輸入欄位，讓一般視窗寬度下能完整顯示。
+        dayunSelectCombo.setFont(dayunSelectCombo.getFont().deriveFont((float) (SELECT_COMBO_SIZE * fontScale)));
+        liunianSelectCombo.setFont(liunianSelectCombo.getFont().deriveFont((float) (SELECT_COMBO_SIZE * fontScale)));
+        liuyueSelectCombo.setFont(liuyueSelectCombo.getFont().deriveFont((float) (SELECT_COMBO_SIZE * fontScale)));
         calcButton.setFont(calcButton.getFont().deriveFont(Font.BOLD, (float) (BUTTON_SIZE * fontScale)));
         summaryLabel.setFont(summaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
         noteLabel.setFont(noteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
@@ -713,7 +803,7 @@ public final class BaziFrame extends JFrame {
             return null;
         }
         Gender gender = (Gender) genderCombo.getSelectedItem();
-        return new BirthInput(year, month, day, hour, minute, gender);
+        return new BirthInput(year, month, day, hour, minute, gender, nameField.getText());
     }
 
     private void calculate() {
@@ -752,13 +842,8 @@ public final class BaziFrame extends JFrame {
         dayPanel.setPillar(result.getDayPillar(), result.getDayTenGods());
         hourPanel.setPillar(result.getHourPillar(), result.getHourTenGods());
 
-        summaryLabel.setText(String.format(
-                "八字：%s年 %s月 %s日 %s時　｜　生肖：%s",
-                result.getYearPillar().getGanZhi(),
-                result.getMonthPillar().getGanZhi(),
-                result.getDayPillar().getGanZhi(),
-                result.getHourPillar().getGanZhi(),
-                result.getZodiac()));
+        currentResult = result;
+        refreshSummary();
 
         StringBuilder note = new StringBuilder();
         note.append(String.format("年柱以立春為界，判定流年為西元 %d 年。", result.getEffectiveYear()));
@@ -780,6 +865,21 @@ public final class BaziFrame extends JFrame {
         FiveElementMass mass = calculator.calculateFiveElementMass(result);
         fiveElementMassChart.setMass(mass);
         fiveElementTenGodStats.setCounts(calculator.calculateTenGodCounts(result));
+    }
+
+    /** 命盤摘要第一行：有姓名時一併顯示（姓名變動時即時更新，不需重新排盤）。 */
+    private void refreshSummary() {
+        if (currentResult == null) {
+            return;
+        }
+        String name = BirthInput.normalizeName(nameField.getText());
+        summaryLabel.setText((name.isEmpty() ? "" : "姓名：" + name + "　｜　") + String.format(
+                "八字：%s年 %s月 %s日 %s時　｜　生肖：%s",
+                currentResult.getYearPillar().getGanZhi(),
+                currentResult.getMonthPillar().getGanZhi(),
+                currentResult.getDayPillar().getGanZhi(),
+                currentResult.getHourPillar().getGanZhi(),
+                currentResult.getZodiac()));
     }
 
     private DaYunResult renderDaYun(BaziResult result, BirthInput input) {
@@ -930,8 +1030,7 @@ public final class BaziFrame extends JFrame {
 
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("PNG 圖片 (*.png)", "png"));
-        chooser.setSelectedFile(new File(String.format("八字_%04d%02d%02d.png",
-                (int) yearSpinner.getValue(), (int) monthSpinner.getValue(), (int) daySpinner.getValue())));
+        chooser.setSelectedFile(new File(defaultFileBaseName() + ".png"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -986,8 +1085,7 @@ public final class BaziFrame extends JFrame {
 
         JFileChooser chooser = new JFileChooser();
         chooser.setFileFilter(new FileNameExtensionFilter("八字檔案 (*.bazi)", "bazi"));
-        chooser.setSelectedFile(new File(String.format("八字_%04d%02d%02d.bazi",
-                input.year(), input.month(), input.day())));
+        chooser.setSelectedFile(new File(defaultFileBaseName() + ".bazi"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -1021,25 +1119,88 @@ public final class BaziFrame extends JFrame {
 
         File file = chooser.getSelectedFile();
         try {
-            BirthInput input = BaziFileIO.load(file);
-            // 逐欄設定時暫停自動重排，全部設定完成後只排盤一次。
-            suppressAutoCalc = true;
-            try {
-                yearSpinner.setValue(input.year());
-                monthSpinner.setValue(input.month());
-                updateDayLimit();
-                daySpinner.setValue(input.day());
-                hourCombo.setSelectedIndex(input.hour());
-                minuteSpinner.setValue(input.minute());
-                genderCombo.setSelectedItem(input.gender());
-            } finally {
-                suppressAutoCalc = false;
-            }
-            calculate();
+            applyInput(BaziFileIO.load(file));
         } catch (IOException | IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, "載入失敗：" + ex.getMessage(),
                     "錯誤", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    // ---------------------------------------------------------------- 人員資料
+
+    /** 預設檔名：有姓名時以「姓名_出生日期」命名，否則為「八字_出生日期」。 */
+    private String defaultFileBaseName() {
+        String name = BirthInput.normalizeName(nameField.getText()).replaceAll("[\\\\/:*?\"<>|]", "_");
+        return String.format("%s_%04d%02d%02d", name.isEmpty() ? "八字" : name,
+                (int) yearSpinner.getValue(), (int) monthSpinner.getValue(), (int) daySpinner.getValue());
+    }
+
+    /** 把一筆輸入（含姓名）填入畫面並排盤；逐欄設定時暫停自動重排，最後只排盤一次。 */
+    private void applyInput(BirthInput input) {
+        suppressAutoCalc = true;
+        try {
+            nameField.setText(input.name());
+            yearSpinner.setValue(input.year());
+            monthSpinner.setValue(input.month());
+            updateDayLimit();
+            daySpinner.setValue(input.day());
+            hourCombo.setSelectedIndex(input.hour());
+            minuteSpinner.setValue(input.minute());
+            genderCombo.setSelectedItem(input.gender());
+        } finally {
+            suppressAutoCalc = false;
+        }
+        calculate();
+    }
+
+    /** 以姓名為鍵把目前輸入存入人員資料；同名但出生資料不同時先詢問是否覆蓋。 */
+    private void savePerson() {
+        BirthInput input = readInput();
+        if (input == null) {
+            return;
+        }
+        if (!input.hasName()) {
+            showStatus("請先輸入姓名，再儲存人員");
+            nameField.requestFocusInWindow();
+            return;
+        }
+        try {
+            BirthInput existing = personStore.find(input.name());
+            if (existing != null && existing.sameBirth(input) && existing.name().equals(input.name())) {
+                showStatus("「" + input.name() + "」的資料已是最新，不需再儲存");
+                return;
+            }
+            if (existing != null && !existing.sameBirth(input) && JOptionPane.showConfirmDialog(this,
+                    "人員資料中已有「" + existing.name() + "」，是否以目前輸入的出生資料覆蓋？",
+                    "覆蓋人員資料", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+                return;
+            }
+            boolean replaced = personStore.put(input);
+            showStatus((replaced ? "已更新「" : "已儲存「") + input.name() + "」至人員資料");
+            if (personDialog != null) {
+                personDialog.refresh();
+            }
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "儲存人員失敗：" + ex.getMessage(),
+                    "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void openPeople() {
+        if (personDialog == null) {
+            personDialog = new PersonDialog(this, personStore, person -> {
+                applyInput(person);
+                showStatus("已帶入「" + person.name() + "」");
+            });
+            personDialog.setFontScale(fontScale);
+        }
+        personDialog.open();
+    }
+
+    /** 在輸入區下方顯示操作結果，數秒後自動清除（取代需要按確定的訊息視窗）。 */
+    private void showStatus(String message) {
+        statusLabel.setText(message);
+        statusTimer.restart();
     }
 
     /**

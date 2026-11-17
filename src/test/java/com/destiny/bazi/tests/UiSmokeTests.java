@@ -142,6 +142,45 @@ final class UiSmokeTests {
             }
             invoke(frame, "resetFontScale");
 
+            // 姓名、儲存人員、從人員查詢視窗帶入
+            JTextField nameField = (JTextField) field(frame, "nameField");
+            nameField.setText("測試人員甲");
+            String summaryWithName = ((JLabel) field(frame, "summaryLabel")).getText();
+            Check.isTrue("命盤摘要顯示姓名", summaryWithName.startsWith("姓名：測試人員甲"), summaryWithName);
+            invoke(frame, "savePerson");
+            com.destiny.bazi.io.PersonStore store = (com.destiny.bazi.io.PersonStore) field(frame, "personStore");
+            com.destiny.bazi.io.BirthInput saved = store.find("測試人員甲");
+            Check.equal("儲存人員", new com.destiny.bazi.io.BirthInput(1950, 9, 4, 4, 31, Gender.FEMALE, "測試人員甲"), saved);
+            String status = ((JLabel) field(frame, "statusLabel")).getText();
+            Check.isTrue("儲存後狀態提示", status.contains("已儲存「測試人員甲」"), status);
+
+            nameField.setText("");
+            invoke(frame, "savePerson");
+            status = ((JLabel) field(frame, "statusLabel")).getText();
+            Check.isTrue("未填姓名時提示", status.contains("請先輸入姓名"), status);
+
+            // 換成別的命盤後，從人員查詢視窗帶入剛才儲存的人員
+            ((JSpinner) field(frame, "yearSpinner")).setValue(2001);
+            invoke(frame, "openPeople");
+            JDialog dialog = (JDialog) field(frame, "personDialog");
+            Check.isTrue("人員查詢視窗開啟", dialog.isVisible(), "視窗未顯示");
+            JTable table = (JTable) field(dialog, "table");
+            JTextField search = (JTextField) field(dialog, "searchField");
+            search.setText("不存在的名字");
+            Check.equal("搜尋無結果", 0, table.getRowCount());
+            search.setText("1950-09");
+            Check.equal("依日期搜尋", 1, table.getRowCount());
+            search.setText("測試人員");
+            Check.equal("依姓名搜尋", 1, table.getRowCount());
+            Check.equal("八字欄位", "庚寅 甲申 壬寅 壬寅", table.getValueAt(0, 3));
+            search.postActionEvent();
+            Check.isTrue("帶入後關閉視窗", !dialog.isVisible(), "視窗仍開啟");
+            Check.equal("帶入姓名", "測試人員甲", nameField.getText());
+            Check.equal("帶入出生年", 1950, ((JSpinner) field(frame, "yearSpinner")).getValue());
+            Check.equal("帶入後重新排盤", "1959~1968年（9~18歲）　癸未",
+                    String.valueOf(dayun.getItemAt(0)).replace("　● 目前", ""));
+            store.remove("測試人員甲");
+
             // 繪製匯出圖片（與「匯出圖片」相同方式），確認有實際內容
             JComponent export = (JComponent) field(frame, "exportPanel");
             Dimension size = export.getPreferredSize();

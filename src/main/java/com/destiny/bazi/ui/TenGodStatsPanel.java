@@ -13,7 +13,7 @@ import java.util.Map;
 public final class TenGodStatsPanel extends JPanel {
 
     private final Map<String, JLabel> valueLabels = new LinkedHashMap<>();
-    private float baseFontSize = 12f;
+    private float baseFontSize = 14f;
 
     public TenGodStatsPanel() {
         super(new GridLayout(5, 2, 12, 2));
@@ -42,7 +42,7 @@ public final class TenGodStatsPanel extends JPanel {
     }
 
     public void setFontScale(double scale) {
-        baseFontSize = (float) (12 * scale);
+        baseFontSize = (float) (14 * scale);
         for (JLabel label : valueLabels.values()) {
             label.setFont(label.getFont().deriveFont(baseFontSize));
         }

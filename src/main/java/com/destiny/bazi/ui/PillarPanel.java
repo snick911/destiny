@@ -48,11 +48,11 @@ public final class PillarPanel extends JPanel {
         padH = compact ? 4 : 10;
         updateBorder();
 
-        titleSize = compact ? 12f : 16f;
-        tenGodSize = compact ? 11f : 13f;
-        bigCharSize = compact ? 28f : 46f;
-        elementSize = compact ? 10f : 12f;
-        hiddenSize = compact ? 10f : 11f;
+        titleSize = compact ? 13f : 17f;
+        tenGodSize = compact ? 13f : 15f;
+        bigCharSize = compact ? 30f : 48f;
+        elementSize = compact ? 12f : 14f;
+        hiddenSize = compact ? 12f : 14f;
 
         titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(DarkTheme.FG_SECONDARY);

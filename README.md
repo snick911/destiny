@@ -152,9 +152,27 @@ Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java
 - 每張柱卡（年柱／月柱／日柱／時柱／各期大運）的天干與地支字元一律
   上緣對齊，不因地支藏干行數（1~3 行）不同而錯位。
 
+## 姓名與人員資料
+
+輸入區第一列可填寫**姓名**（選填），填寫後命盤摘要會顯示姓名。
+
+- **儲存人員**（Ctrl+D，或在姓名欄按 Enter）：以姓名為準，把目前的出生
+  年月日時分與性別存入人員資料；已有同名人員且出生資料不同時，會先詢問
+  是否覆蓋。
+- **人員查詢…**（Ctrl+F）：開啟人員查詢小視窗，列出所有人員的姓名、出生
+  時間、性別與八字。在搜尋框輸入姓名、日期（如 `1990-05`）或干支（如
+  `庚午`）即時篩選，↑／↓ 移動選取，按 Enter、雙擊或「帶入」即把該人員
+  資料填入主畫面並排盤；選取後按「刪除」（或 Delete 鍵）可刪除人員。
+
+人員資料存放於使用者家目錄下的 `.destiny-bazi/people.tsv`（Windows 為
+`C:\Users\<使用者>\.destiny-bazi\people.tsv`），為 UTF-8 純文字檔、每行
+一人（姓名、年、月、日、時、分、性別以 Tab 分隔），可自行備份或複製到
+其他電腦使用。
+
 ## 選單功能
 
-- **檔案 → 儲存結果...**（Ctrl+S）：將目前輸入的出生年月日時分、性別與
+- **檔案 → 儲存人員**（Ctrl+D）／**人員查詢...**（Ctrl+F）：見上方「姓名與人員資料」。
+- **檔案 → 儲存結果...**（Ctrl+S）：將目前輸入的姓名、出生年月日時分、性別與
   排盤結果存成 `.bazi` 純文字檔（UTF-8）。
 - **檔案 → 載入結果...**（Ctrl+O）：讀取 `.bazi` 檔，還原出生年月日時分、
   性別並依目前排盤邏輯重新計算（確保結果與程式版本一致；舊檔案若無
@@ -169,7 +187,7 @@ Windows 免安裝版由 `jpackage` 在 Windows 上產生（內含只保留 `java
 ## 版面配置
 
 畫面由上而下分為五個獨立的卡片區塊，各自加上標題以利區分：
-**排盤輸入**（年月日時分、性別、排盤按鈕）→ **四柱**（年柱／月柱／
+**排盤輸入**（姓名與人員資料按鈕、年月日時分、性別、排盤按鈕）→ **四柱**（年柱／月柱／
 日柱／時柱）→ **命盤摘要**（含命盤本身的月令與五行質量）→ **大運**
 （八期大運，標示今天所在的「目前」大運；點選卡片即切換下方查詢）→ **大運／流年／流月查詢**（「選擇大運」
 「選擇流年」「選擇流月」三個下拉選單，選定後即時顯示該期大運、該年
@@ -201,7 +219,7 @@ src/test/java/com/destiny/bazi/tests/
 ├── CalendarTests.java        # 節氣、四柱、口訣表、十神藏干、流年流月
 ├── DaYunTests.java           # 大運與交運、五行質量、十神統計
 ├── CrossCheckTests.java      # 獨立實作交叉比對
-├── FileIoTests.java          # 存檔與載入
+├── FileIoTests.java          # 存檔與載入、人員資料
 └── UiSmokeTests.java         # 介面冒煙測試
 src/main/java/com/destiny/bazi/
 ├── Main.java                 # 程式進入點
@@ -225,12 +243,14 @@ src/main/java/com/destiny/bazi/
 │   ├── BaziCalculator.java    # 排盤核心邏輯
 │   └── BaziResult.java        # 排盤結果
 ├── io/
-│   ├── BirthInput.java         # 出生年月日時分性別資料
-│   └── BaziFileIO.java         # 排盤結果儲存／載入
+│   ├── BirthInput.java         # 姓名與出生年月日時分性別資料
+│   ├── BaziFileIO.java         # 排盤結果儲存／載入
+│   └── PersonStore.java        # 人員資料庫（~/.destiny-bazi/people.tsv）
 └── ui/
     ├── DarkTheme.java          # 護眼暗色主題配色（含選單樣式）
     ├── PillarPanel.java        # 單柱顯示卡片（支援緊湊模式與字體縮放）
     ├── FiveElementBarChart.java # 五行質量水平長條圖
     ├── TenGodStatsPanel.java    # 十神統計（各十神出現次數）
+    ├── PersonDialog.java       # 人員查詢小視窗（搜尋、帶入、刪除）
     └── BaziFrame.java          # 主視窗（選單列、儲存載入、匯出圖片、字體縮放、大運）
 ```

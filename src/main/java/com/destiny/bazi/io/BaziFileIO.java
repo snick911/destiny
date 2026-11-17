@@ -16,7 +16,7 @@ import java.util.Properties;
 /**
  * 排盤結果的儲存與載入（純文字 Properties 格式，UTF-8 編碼）。
  *
- * <p>檔案儲存出生年月日時分（載入時據此重新排盤），以及儲存時的程式版本與
+ * <p>檔案儲存姓名（選填）與出生年月日時分（載入時據此重新排盤），以及儲存時的程式版本與
  * 當時算出的四柱作為可讀紀錄；載入時僅採用出生年月日時分，確保結果與目前的排盤邏輯一致。</p>
  */
 public final class BaziFileIO {
@@ -33,6 +33,9 @@ public final class BaziFileIO {
         props.setProperty("hour", String.valueOf(input.hour()));
         props.setProperty("minute", String.valueOf(input.minute()));
         props.setProperty("gender", input.gender().name());
+        if (input.hasName()) {
+            props.setProperty("name", input.name());
+        }
         props.setProperty("yearPillar", result.getYearPillar().getGanZhi());
         props.setProperty("monthPillar", result.getMonthPillar().getGanZhi());
         props.setProperty("dayPillar", result.getDayPillar().getGanZhi());
@@ -62,7 +65,7 @@ public final class BaziFileIO {
             } catch (IllegalArgumentException e) {
                 gender = Gender.MALE;
             }
-            return new BirthInput(year, month, day, hour, minute, gender);
+            return new BirthInput(year, month, day, hour, minute, gender, props.getProperty("name", ""));
         } catch (NumberFormatException e) {
             throw new IOException("檔案格式不正確或內容缺漏", e);
         }

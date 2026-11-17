@@ -18,7 +18,18 @@ public final class AllTests {
     private AllTests() {
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws java.io.IOException {
+        // 人員資料改存到暫存資料夾，測試不會動到使用者真正的人員資料。
+        Path dataDir = Files.createTempDirectory("bazi-data");
+        System.setProperty(com.destiny.bazi.io.PersonStore.DATA_DIR_PROPERTY, dataDir.toString());
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try (var paths = Files.walk(dataDir)) {
+                paths.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            } catch (java.io.IOException ignored) {
+                // 暫存資料夾清不掉不影響測試結果
+            }
+        }));
+
         Check.run("節氣時刻", CalendarTests::solarTerms);
         Check.run("四柱與傳統口訣表", CalendarTests::pillars);
         Check.run("十神與藏干表", CalendarTests::tenGodsAndHiddenStems);
@@ -27,6 +38,7 @@ public final class AllTests {
         Check.run("五行質量與十神統計", DaYunTests::massAndCounts);
         Check.run("獨立實作交叉比對", CrossCheckTests::run);
         Check.run("存檔與載入", FileIoTests::run);
+        Check.run("人員資料", FileIoTests::personStore);
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("－ 介面冒煙測試               略過（無顯示環境）");
             System.out.println("－ 自我檢測（--self-test）      略過（無顯示環境）");
