@@ -40,6 +40,7 @@ public final class AllTests {
         Check.run("農曆換算（對照曆表）", LunarCalendarTests::run);
         Check.run("紫微斗數排盤", ZiWeiTests::run);
         Check.run("紫微獨立實作交叉比對", ZiWeiTests::crossCheck);
+        Check.run("運勢評分（對照 lifeup）", LuckScoreTests::run);
         Check.run("存檔與載入", FileIoTests::run);
         Check.run("人員資料", FileIoTests::personStore);
         if (GraphicsEnvironment.isHeadless()) {

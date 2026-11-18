@@ -7,6 +7,8 @@ import com.destiny.bazi.core.GanZhi;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.ui.BaziFrame;
 import com.destiny.bazi.ui.DarkTheme;
+import com.destiny.bazi.ziwei.LuckOverlay;
+import com.destiny.bazi.ziwei.LuckScore;
 import com.destiny.bazi.ziwei.Star;
 import com.destiny.bazi.ziwei.ZiWeiCalculator;
 import com.destiny.bazi.ziwei.ZiWeiChart;
@@ -87,7 +89,20 @@ public final class SelfTest {
             boolean ziweiOk = "辛未 土五局 紫微午 甲子年六月廿九".equals(ziweiText);
             lines.add("ziwei.1984-07-27T00:00.M=" + ziweiText);
 
-            ok = titleOk && showing[0] && fontOk && chartOk && dayunOk && ziweiOk;
+            // 運勢評分：預期值由 lifeup 原始程式算出（1968-09-30 5 時女命、第二限、1989 年十一月）
+            ZiWeiCalculator ziweiCalc = new ZiWeiCalculator();
+            ZiWeiChart scored = ziweiCalc.calculate(1968, 9, 30, 5, 0, Gender.FEMALE);
+            LuckOverlay decade = ziweiCalc.decade(scored, 1);
+            LuckOverlay year = ziweiCalc.year(scored, 1989);
+            LuckOverlay month = ziweiCalc.month(scored, 1989, 11);
+            String scores = LuckScore.decadeLuck(scored, decade) + "/" + LuckScore.yearLuck(scored, decade, year)
+                    + "/" + LuckScore.monthLuck(scored, decade, year, month) + " wealth="
+                    + LuckScore.natalWealth(scored) + "/" + LuckScore.decadeWealth(scored, decade) + "/"
+                    + LuckScore.yearWealth(scored, decade, year);
+            boolean scoreOk = "44/34/52 wealth=-30/-111/-15".equals(scores);
+            lines.add("luck.1968-09-30T05:00.F=" + scores);
+
+            ok = titleOk && showing[0] && fontOk && chartOk && dayunOk && ziweiOk && scoreOk;
         } catch (Exception e) {
             lines.add("error=" + e);
             ok = false;

@@ -4,6 +4,11 @@ import com.destiny.bazi.AppInfo;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.ui.BaziFrame;
 import com.destiny.bazi.ui.DarkTheme;
+import com.destiny.bazi.ui.LuckCurveChart;
+import com.destiny.bazi.ziwei.LuckOverlay;
+import com.destiny.bazi.ziwei.LuckScore;
+import com.destiny.bazi.ziwei.ZiWeiCalculator;
+import com.destiny.bazi.ziwei.ZiWeiChart;
 
 import javax.swing.*;
 import java.awt.*;
@@ -286,6 +291,76 @@ final class UiSmokeTests {
         Check.equal("點選寅宮切換大限", 7, decade.getSelectedIndex());
         Check.isTrue("點選後大限文字", String.valueOf(decade.getSelectedItem()).startsWith("丙寅 75~84歲"),
                 String.valueOf(decade.getSelectedItem()));
+
+        // 命盤與 lifeup 同大小（每宮 200×200）、黑底；視窗夠寬時以原尺寸顯示
+        Check.equal("命盤原尺寸寬度（每宮 200）", 800, chart.getPreferredSize().width);
+        Check.equal("命盤原尺寸高度（每宮 200）", 800, chart.getPreferredSize().height);
+        if (frame.getGraphicsConfiguration().getBounds().width >= 1000) {
+            Check.equal("切到紫微時命盤不被縮小", 800, chart.getWidth());
+        }
+        BufferedImage chartImage = new BufferedImage(chart.getWidth(), chart.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D cg = chartImage.createGraphics();
+        chart.printAll(cg);
+        cg.dispose();
+        int black = 0;
+        int total = 0;
+        for (int x = 0; x < chartImage.getWidth(); x += 3) {
+            for (int y = 0; y < chartImage.getHeight(); y += 3) {
+                total++;
+                if ((chartImage.getRGB(x, y) & 0xFFFFFF) == 0) {
+                    black++;
+                }
+            }
+        }
+        Check.isTrue("命盤黑底", black * 2 > total, "黑色像素 " + black + " / " + total);
+
+        // 中宮：各層干支與好運指數（lifeup 評分）
+        depth.setSelectedIndex(3);
+        @SuppressWarnings("unchecked")
+        List<String[]> centerRows = (List<String[]>) call(chart, "luckRows");
+        Check.equal("流月盤中宮行運列數", 6, centerRows.size());
+        for (int i = 1; i < centerRows.size(); i += 2) {
+            Check.isTrue("中宮好運指數列", centerRows.get(i)[0].equals("好運指數")
+                    && centerRows.get(i)[1].matches("-?\\d+　.+"), String.join(" ", centerRows.get(i)));
+        }
+        depth.setSelectedIndex(0);
+        @SuppressWarnings("unchecked")
+        List<String[]> natalRows = (List<String[]>) call(chart, "luckRows");
+        Check.equal("本命盤中宮不顯示行運", 0, natalRows.size());
+
+        // 運勢指數區塊：摘要與所選大限十個流年的兩條曲線
+        String scoreText = ((JLabel) field(frame, "scoreSummaryLabel")).getText();
+        Check.isTrue("運勢指數摘要", scoreText.contains("本命財運指數") && scoreText.contains("大限 丙寅 好運指數")
+                && scoreText.contains("流月"), scoreText);
+        ZiWeiCalculator calc = new ZiWeiCalculator();
+        ZiWeiChart zw = calc.calculate(1984, 7, 27, 0, 0, Gender.MALE);
+        LuckOverlay dec = calc.decade(zw, 7);
+        LuckCurveChart luckCurve = (LuckCurveChart) field(frame, "yearLuckChart");
+        LuckCurveChart wealthCurve = (LuckCurveChart) field(frame, "yearWealthChart");
+        int[] luckValues = (int[]) call(luckCurve, "values");
+        int[] wealthValues = (int[]) call(wealthCurve, "values");
+        Check.equal("流年好運曲線點數", 10, luckValues.length);
+        for (int i = 0; i < luckValues.length; i++) {
+            LuckOverlay yo = calc.year(zw, zw.getDecades().get(7).startYear() + i);
+            Check.equal("流年好運曲線第" + (i + 1) + "點", LuckScore.yearLuck(zw, dec, yo), luckValues[i]);
+            Check.equal("流年財運曲線第" + (i + 1) + "點", LuckScore.yearWealth(zw, dec, yo), wealthValues[i]);
+        }
+        // 點選曲線上的第一個年份：流年選單切到該年
+        frame.validate();
+        int clickX = -1;
+        int midY = luckCurve.getHeight() / 2;
+        for (int x = 0; x < luckCurve.getWidth() && clickX < 0; x++) {
+            MouseEvent probe = new MouseEvent(luckCurve, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, midY, 0, false);
+            if (luckCurve.getToolTipText(probe) != null) {
+                clickX = x + 4;
+            }
+        }
+        Check.isTrue("曲線有可點選的年份", clickX >= 0, "找不到資料點");
+        luckCurve.dispatchEvent(new MouseEvent(luckCurve, MouseEvent.MOUSE_CLICKED, System.currentTimeMillis(),
+                0, clickX, midY, 1, false, MouseEvent.BUTTON1));
+        Check.isTrue("點選曲線切換流年", String.valueOf(year.getSelectedItem()).startsWith("2058年"),
+                String.valueOf(year.getSelectedItem()));
+        Check.isTrue("點選曲線後盤面疊到流年", depth.getSelectedIndex() >= 2, "盤面 " + depth.getSelectedIndex());
 
         // 字體放到最大、縮到最小：命盤寬度不超出所在區塊，繪製不出錯
         for (int step = 0; step < 27; step++) {

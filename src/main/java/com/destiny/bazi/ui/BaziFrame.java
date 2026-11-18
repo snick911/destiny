@@ -17,6 +17,7 @@ import com.destiny.bazi.io.BirthInput;
 import com.destiny.bazi.io.PersonStore;
 import com.destiny.bazi.ziwei.Decade;
 import com.destiny.bazi.ziwei.LuckOverlay;
+import com.destiny.bazi.ziwei.LuckScore;
 import com.destiny.bazi.ziwei.ZiWeiCalculator;
 import com.destiny.bazi.ziwei.ZiWeiChart;
 
@@ -129,9 +130,10 @@ public final class BaziFrame extends JFrame {
     private final JLabel fourPillarsSectionTitle = new JLabel("四柱", SwingConstants.CENTER);
     private final JLabel summarySectionTitle = new JLabel("命盤摘要", SwingConstants.CENTER);
     private final JLabel ziweiSectionTitle = new JLabel("紫微斗數命盤", SwingConstants.CENTER);
+    private final JLabel scoreSectionTitle = new JLabel("運勢指數", SwingConstants.CENTER);
     private final List<JLabel> sectionTitleLabels = List.of(
             inputSectionTitle, fourPillarsSectionTitle, dayunTitleLabel, selectionSectionTitle, summarySectionTitle,
-            ziweiSectionTitle);
+            ziweiSectionTitle, scoreSectionTitle);
 
     // ---- 八字／紫微斗數模式切換 ----
     private final JToggleButton baziModeButton = new JToggleButton("八字");
@@ -149,6 +151,17 @@ public final class BaziFrame extends JFrame {
     private final JComboBox<String> ziweiYearCombo = fittedComboBox();
     private final JComboBox<String> ziweiMonthCombo = fittedComboBox();
     private final JLabel ziweiNoteLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel ziweiLegendLabel = new JLabel(ZiWeiChartPanel.legendHtml(), SwingConstants.CENTER);
+
+    // ---- 運勢指數（lifeup 評分） ----
+    private final JLabel scoreSummaryLabel = new JLabel(" ", SwingConstants.CENTER);
+    private final JLabel scoreNoteLabel = new JLabel(
+            "評分沿用 lifeup：流年好運＝大限 60%＋流年 40%，流月好運＝流月 70%＋流年 30%；點選曲線上的年份可切換流年",
+            SwingConstants.CENTER);
+    private final LuckCurveChart yearLuckChart = new LuckCurveChart("流年好運指數", ZiWeiChartPanel.LAYER_YEAR,
+            -1, 101, new int[]{0, 20, 40, 60, 80, 100}, LuckScore::describe);
+    private final LuckCurveChart yearWealthChart = new LuckCurveChart("流年財運指數", ZiWeiChartPanel.STAR_LUCKY,
+            -200, 250, null, null);
     private final List<Integer> ziweiYears = new ArrayList<>();
     private boolean updatingZiWeiCombos = false;
     private ZiWeiChart currentZiWei;
@@ -461,7 +474,13 @@ public final class BaziFrame extends JFrame {
         bazi.add(Box.createVerticalStrut(22));
         bazi.add(buildSelectionPanel());
         baziContent = bazi;
-        ziweiContent = buildZiWeiPanel();
+        JPanel ziwei = new JPanel();
+        ziwei.setOpaque(false);
+        ziwei.setLayout(new BoxLayout(ziwei, BoxLayout.Y_AXIS));
+        ziwei.add(buildZiWeiPanel());
+        ziwei.add(Box.createVerticalStrut(22));
+        ziwei.add(buildScorePanel());
+        ziweiContent = ziwei;
 
         // 輸入區兩種模式共用；下方依模式只放入八字或紫微斗數其中一組內容
         // （不用 CardLayout，避免較高的那組撐高另一組的版面與匯出圖片）。
@@ -488,7 +507,8 @@ public final class BaziFrame extends JFrame {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         DarkTheme.styleScrollPane(scrollPane);
-        scrollPane.setPreferredSize(new Dimension(780, 680));
+        // 預設寬度讓紫微命盤（每宮 200×200，共 800px）以原尺寸完整顯示
+        scrollPane.setPreferredSize(new Dimension(900, 760));
         root.add(scrollPane, BorderLayout.CENTER);
 
         return root;
@@ -538,6 +558,31 @@ public final class BaziFrame extends JFrame {
         modeContent.add(ziwei ? ziweiContent : baziContent, BorderLayout.CENTER);
         modeContent.revalidate();
         modeContent.repaint();
+        if (ziwei) {
+            widenForZiWeiChart();
+        }
+    }
+
+    /** 視窗不夠寬、命盤會被縮小時，把視窗加寬到能以原尺寸顯示命盤（不超過螢幕、不改變已最大化的視窗）。 */
+    private void widenForZiWeiChart() {
+        if (!isShowing() || (getExtendedState() & MAXIMIZED_BOTH) != 0) {
+            return;
+        }
+        validate();
+        Container row = ziWeiChartPanel.getParent();
+        int deficit = ziWeiChartPanel.getPreferredSize().width - (row == null ? 0 : row.getWidth());
+        if (deficit <= 0) {
+            return;
+        }
+        Rectangle screen = getGraphicsConfiguration().getBounds();
+        int width = Math.min(screen.width, getWidth() + deficit);
+        if (width > getWidth()) {
+            setSize(width, getHeight());
+            if (getX() + width > screen.x + screen.width) {
+                setLocation(Math.max(screen.x, screen.x + screen.width - width), getY());
+            }
+            validate();
+        }
     }
 
     private JComponent buildInputPanel() {
@@ -893,11 +938,48 @@ public final class BaziFrame extends JFrame {
         chartRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         comboRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+        ziweiLegendLabel.setForeground(DarkTheme.FG_SECONDARY);
+        ziweiLegendLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         content.add(comboRow);
         content.add(ziweiNoteLabel);
         content.add(Box.createVerticalStrut(10));
         content.add(chartRow);
+        content.add(Box.createVerticalStrut(8));
+        content.add(ziweiLegendLabel);
 
+        panel.add(content, BorderLayout.CENTER);
+        return panel;
+    }
+
+    /** 運勢指數：lifeup 的好運指數、財運指數，以及所選大限十個流年的兩條曲線（各自一軸）。 */
+    private JComponent buildScorePanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 10));
+        DarkTheme.styleCard(panel);
+        scoreSectionTitle.setForeground(DarkTheme.ACCENT);
+        panel.add(scoreSectionTitle, BorderLayout.NORTH);
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        scoreSummaryLabel.setForeground(DarkTheme.FG_PRIMARY);
+        scoreSummaryLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        scoreNoteLabel.setForeground(DarkTheme.FG_SECONDARY);
+        scoreNoteLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel charts = new JPanel(new GridLayout(1, 2, 12, 0));
+        charts.setOpaque(false);
+        charts.add(yearLuckChart);
+        charts.add(yearWealthChart);
+        charts.setAlignmentX(Component.CENTER_ALIGNMENT);
+        for (LuckCurveChart c : List.of(yearLuckChart, yearWealthChart)) {
+            c.setYearClickListener(this::selectZiWeiYear);
+        }
+
+        content.add(scoreSummaryLabel);
+        content.add(Box.createVerticalStrut(10));
+        content.add(charts);
+        content.add(Box.createVerticalStrut(8));
+        content.add(scoreNoteLabel);
         panel.add(content, BorderLayout.CENTER);
         return panel;
     }
@@ -973,6 +1055,12 @@ public final class BaziFrame extends JFrame {
         }
         ziweiNoteLabel.setFont(ziweiNoteLabel.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
         ziWeiChartPanel.setFontScale(fontScale);
+        for (JLabel l : List.of(ziweiLegendLabel, scoreNoteLabel)) {
+            l.setFont(l.getFont().deriveFont((float) (NOTE_SIZE * fontScale)));
+        }
+        scoreSummaryLabel.setFont(scoreSummaryLabel.getFont().deriveFont((float) (SUMMARY_SIZE * fontScale)));
+        yearLuckChart.setFontScale(fontScale);
+        yearWealthChart.setFontScale(fontScale);
         revalidate();
         repaint();
     }
@@ -1324,6 +1412,61 @@ public final class BaziFrame extends JFrame {
         LuckOverlay month = depth >= ZIWEI_DEPTH_MONTH && hasYear && monthIdx >= 0
                 ? ziWeiCalculator.month(currentZiWei, ziweiYears.get(yearIdx), monthIdx + 1) : null;
         ziWeiChartPanel.setOverlays(decade, year, month);
+        refreshZiWeiScores(decadeIdx, hasYear ? ziweiYears.get(yearIdx) : null, monthIdx + 1);
+    }
+
+    /**
+     * 運勢指數：所選大限、流年、流月的好運指數與評語、本命／大限／流年財運指數，
+     * 以及所選大限十個流年的好運與財運曲線（與盤面疊到哪一層無關）。
+     */
+    private void refreshZiWeiScores(int decadeIdx, Integer year, int month) {
+        if (decadeIdx < 0) {
+            return;
+        }
+        LuckOverlay decade = ziWeiCalculator.decade(currentZiWei, decadeIdx);
+        Decade d = currentZiWei.getDecades().get(decadeIdx);
+        int decadeLuck = LuckScore.decadeLuck(currentZiWei, decade);
+        StringBuilder html = new StringBuilder("<html><div style='text-align:center'>");
+        html.append(String.format("本命財運指數 <b>%d</b>　｜　大限 %s 好運指數 <b>%d</b>（%s）　財運指數 <b>%d</b>",
+                LuckScore.natalWealth(currentZiWei), d.ganZhi(), decadeLuck, LuckScore.describe(decadeLuck),
+                LuckScore.decadeWealth(currentZiWei, decade)));
+        if (year != null) {
+            LuckOverlay yearOverlay = ziWeiCalculator.year(currentZiWei, year);
+            LuckOverlay monthOverlay = ziWeiCalculator.month(currentZiWei, year, month);
+            int yearLuck = LuckScore.yearLuck(currentZiWei, decade, yearOverlay);
+            int monthLuck = LuckScore.monthLuck(currentZiWei, decade, yearOverlay, monthOverlay);
+            html.append(String.format("<br>流年 %d %s 好運指數 <b>%d</b>（%s）　財運指數 <b>%d</b>"
+                            + "　｜　流月 %s %s 好運指數 <b>%d</b>（%s）",
+                    year, yearOverlay.ganZhi(), yearLuck, LuckScore.describe(yearLuck),
+                    LuckScore.yearWealth(currentZiWei, decade, yearOverlay),
+                    LunarCalendar.MONTH_NAMES[month - 1], monthOverlay.ganZhi(), monthLuck,
+                    LuckScore.describe(monthLuck)));
+        }
+        scoreSummaryLabel.setText(html.append("</div></html>").toString());
+
+        int[] years = new int[d.endYear() - d.startYear() + 1];
+        int[] luck = new int[years.length];
+        int[] wealth = new int[years.length];
+        for (int i = 0; i < years.length; i++) {
+            years[i] = d.startYear() + i;
+            LuckOverlay y = ziWeiCalculator.year(currentZiWei, years[i]);
+            luck[i] = LuckScore.yearLuck(currentZiWei, decade, y);
+            wealth[i] = LuckScore.yearWealth(currentZiWei, decade, y);
+        }
+        String subtitle = String.format("大限 %s %d~%d歲（%d~%d）", d.ganZhi(), d.startAge(), d.endAge(),
+                d.startYear(), d.endYear());
+        int selected = year == null ? Integer.MIN_VALUE : year;
+        yearLuckChart.setData(years, luck, selected, todayLunarYear, subtitle);
+        yearWealthChart.setData(years, wealth, selected, todayLunarYear, subtitle);
+    }
+
+    /** 點選曲線上的年份：在流年選單中選取該年（盤面至少疊到流年）。 */
+    private void selectZiWeiYear(int year) {
+        int idx = ziweiYears.indexOf(year);
+        if (idx >= 0) {
+            raiseZiWeiDepth(ZIWEI_DEPTH_YEAR);
+            ziweiYearCombo.setSelectedIndex(idx);
+        }
     }
 
     private void raiseZiWeiDepth(int minDepth) {
