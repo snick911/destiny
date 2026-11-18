@@ -3,9 +3,13 @@ package com.destiny.bazi;
 import com.destiny.bazi.core.BaziCalculator;
 import com.destiny.bazi.core.BaziResult;
 import com.destiny.bazi.core.DaYunResult;
+import com.destiny.bazi.core.GanZhi;
 import com.destiny.bazi.core.Gender;
 import com.destiny.bazi.ui.BaziFrame;
 import com.destiny.bazi.ui.DarkTheme;
+import com.destiny.bazi.ziwei.Star;
+import com.destiny.bazi.ziwei.ZiWeiCalculator;
+import com.destiny.bazi.ziwei.ZiWeiChart;
 
 import javax.swing.*;
 import java.awt.GraphicsEnvironment;
@@ -19,14 +23,14 @@ import java.util.List;
 
 /**
  * 自我檢測（{@code --self-test <報告檔>}）：在實際安裝／打包後的環境中開啟主視窗、
- * 排一張已知命盤，並將結果寫入報告檔，用於驗證打包版本（例如 Windows 免安裝版）
+ * 排已知的八字與紫微斗數命盤，並將結果寫入報告檔，用於驗證打包版本（例如 Windows 免安裝版）
  * 可正常啟動。全部正常時結束碼為 0，報告最後一行為 {@code result=OK}。
  */
 public final class SelfTest {
 
     public static final String FLAG = "--self-test";
 
-    private static final String SAMPLE_TEXT = "子平八字排盤";
+    private static final String SAMPLE_TEXT = "子平八字紫微斗數排盤";
 
     private SelfTest() {
     }
@@ -77,7 +81,13 @@ public final class SelfTest {
                     && dayun.getPeriods().get(0).getStartYear() == 1959;
             lines.add("dayun.1950-09-04T04:31.F=" + dayun.getStartDate() + " / " + dayun.getPeriods().get(0).getStartYear());
 
-            ok = titleOk && showing[0] && fontOk && chartOk && dayunOk;
+            ZiWeiChart ziwei = new ZiWeiCalculator().calculate(1984, 7, 27, 0, 0, Gender.MALE);
+            String ziweiText = ziwei.palaceGanZhi(ziwei.getLifeBranch()) + " " + ziwei.getBureau().label()
+                    + " 紫微" + GanZhi.BRANCHES[ziwei.branchOf(Star.ZI_WEI)] + " " + ziwei.getLunarDate().toChineseString();
+            boolean ziweiOk = "辛未 土五局 紫微午 甲子年六月廿九".equals(ziweiText);
+            lines.add("ziwei.1984-07-27T00:00.M=" + ziweiText);
+
+            ok = titleOk && showing[0] && fontOk && chartOk && dayunOk && ziweiOk;
         } catch (Exception e) {
             lines.add("error=" + e);
             ok = false;

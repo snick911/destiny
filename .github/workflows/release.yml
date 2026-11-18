@@ -74,7 +74,7 @@ jobs:
             --name DestinyBazi \
             --app-version "$VERSION" \
             --vendor snick911 \
-            --description "Zi Ping Ba Zi calculator" \
+            --description "Ba Zi and Zi Wei Dou Shu calculator" \
             --add-modules java.desktop \
             --dest build/image
           cp README.md CHANGELOG.md build/image/DestinyBazi/
@@ -130,4 +130,4 @@ jobs:
             exit 0
           fi
           awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 {f = 1; next} /^## \[/ {f = 0} f' CHANGELOG.md > notes.md
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "子平八字排盤 $TAG" --notes-file notes.md assets/*.zip
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "八字紫微排盤 $TAG" --notes-file notes.md assets/*.zip

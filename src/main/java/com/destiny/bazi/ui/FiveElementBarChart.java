@@ -15,7 +15,7 @@ public final class FiveElementBarChart extends JPanel {
 
     private final double[] values = new double[ELEMENT_ORDER.length];
     private double total = 0;
-    private float baseFontSize = 13f;
+    private float baseFontSize = 15f;
 
     public FiveElementBarChart() {
         setOpaque(false);
@@ -33,7 +33,7 @@ public final class FiveElementBarChart extends JPanel {
     }
 
     public void setFontScale(double scale) {
-        baseFontSize = (float) (13 * scale);
+        baseFontSize = (float) (15 * scale);
         revalidate();
         repaint();
     }
@@ -41,7 +41,7 @@ public final class FiveElementBarChart extends JPanel {
     @Override
     public Dimension getPreferredSize() {
         int rowHeight = rowHeight();
-        return new Dimension(360, rowHeight * ELEMENT_ORDER.length + 4);
+        return new Dimension((int) Math.round(400 * baseFontSize / 15f), rowHeight * ELEMENT_ORDER.length + 4);
     }
 
     @Override
@@ -61,7 +61,7 @@ public final class FiveElementBarChart extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         Font labelFont = getFont().deriveFont(Font.BOLD, baseFontSize);
-        Font valueFont = getFont().deriveFont(baseFontSize * 0.82f);
+        Font valueFont = getFont().deriveFont(baseFontSize * 0.9f);
         FontMetrics labelMetrics = g2.getFontMetrics(labelFont);
         FontMetrics valueMetrics = g2.getFontMetrics(valueFont);
 
