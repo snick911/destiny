@@ -18,7 +18,7 @@
 以及當年小限。安星規則參考 lifeup 專案並修正其中的錯誤（見下方「紫微斗數
 排盤規則」）。
 
-目前版本：**1.2.0**（各版本變更見 [CHANGELOG.md](CHANGELOG.md)）。
+目前版本：**1.2.1**（各版本變更見 [CHANGELOG.md](CHANGELOG.md)）。
 
 ## 下載與執行（一般使用者）
 
@@ -295,7 +295,7 @@ CHANGELOG.md                  # 版本更新紀錄
 packaging/                    # 打包進 zip 的啟動檔（Windows / macOS・Linux）
 dist/
 ├── destiny-bazi.jar          # 已建置好、可直接執行的 JAR（Java 17+）
-└── destiny-bazi-1.2.0.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
+└── destiny-bazi-1.2.1.zip    # 發佈用壓縮檔（JAR＋啟動檔＋說明文件）
 src/test/java/com/destiny/bazi/tests/
 ├── AllTests.java             # 測試進入點（失敗時結束碼為 1）
 ├── CalendarTests.java        # 節氣、四柱、口訣表、十神藏干、流年流月

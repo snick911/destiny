@@ -4,7 +4,7 @@
 （主版號.次版號.修訂號），程式內的版本號定義於
 `src/main/java/com/destiny/bazi/AppInfo.java`，發佈新版時兩處需同步更新。
 
-## [未發佈]
+## [1.2.1] - 2026-11-18
 
 ### 修正
 
@@ -147,6 +147,7 @@
   也未換算真太陽時。
 - 子時採「23 時即換日」；不支援「早晚子時」（晚子時日柱不換日）的算法。
 
+[1.2.1]: https://github.com/snick911/destiny/releases/tag/v1.2.1
 [1.2.0]: https://github.com/snick911/destiny/releases/tag/v1.2.0
 [1.1.0]: https://github.com/snick911/destiny/releases/tag/v1.1.0
 [1.0.1]: https://github.com/snick911/destiny/releases/tag/v1.0.1
