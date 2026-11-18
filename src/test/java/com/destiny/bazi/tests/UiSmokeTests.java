@@ -16,7 +16,8 @@ import java.util.List;
 
 /**
  * 介面冒煙測試：實際開啟主視窗，輸入命盤後逐一切換所有大運、流年、流月，
- * 放大／縮小字體檢查大運卡片不被裁切，並繪製匯出圖片；再切換到紫微斗數，
+ * 放大／縮小字體檢查大運卡片不被裁切、最窄視窗下輸入區換行後仍完整顯示，
+ * 並繪製匯出圖片；再切換到紫微斗數，
  * 逐一切換大限、流年、流月，點選宮位、縮放字體並匯出圖片。
  * 透過反射存取主視窗的私有欄位，僅作為測試用途。
  */
@@ -142,6 +143,8 @@ final class UiSmokeTests {
                 checkDaYunNotClipped(frame, "縮小字體第" + (step + 1) + "次");
             }
             invoke(frame, "resetFontScale");
+
+            checkInputCardAtMinimumWidth(frame);
 
             // 姓名、儲存人員、從人員查詢視窗帶入
             JTextField nameField = (JTextField) field(frame, "nameField");
@@ -317,6 +320,112 @@ final class UiSmokeTests {
             }
         }
         throw new NoSuchMethodException(name);
+    }
+
+    /** 輸入區中依序檢查的輸入元件（第二列尾端的性別與排盤按鈕最容易被換到下一列）。 */
+    private static final List<String> INPUT_FIELDS = List.of("nameField", "savePersonButton", "openPeopleButton",
+            "yearSpinner", "monthSpinner", "daySpinner", "hourCombo", "minuteSpinner", "genderCombo", "calcButton");
+
+    /**
+     * 最窄視窗、最大字體時輸入區換行，換行後的元件仍須完整位於輸入卡片內（FlowLayout 只回報一列高度，
+     * 換到下一列的「分、性別、排盤」曾被裁切而看不到）。依序檢查：視窗縮到最小寬度後逐步放大字體；
+     * 字體最大時視窗由寬（輸入列排成一列）縮到最窄（換成兩列），即換行列數在同一次排版中改變。
+     */
+    private static void checkInputCardAtMinimumWidth(BaziFrame frame) throws Exception {
+        Dimension original = frame.getSize();
+        Dimension min = frame.getMinimumSize();
+        JComponent year = (JComponent) field(frame, "yearSpinner");
+        JComponent calc = (JComponent) field(frame, "calcButton");
+        try {
+            resize(frame, min);
+            Check.equal("視窗縮到最小寬度", min.width, frame.getWidth());
+            for (int step = 0; step < 12; step++) {
+                invoke(frame, "adjustFontScale", 0.1);
+                checkInputsInsideCard(frame, "最小寬度放大字體第" + (step + 1) + "次");
+            }
+            Check.equal("字體放到最大", 1.8, field(frame, "fontScale"));
+            Check.isTrue("最小寬度、最大字體時輸入列換行", !sameLine(year, calc), "排盤按鈕仍與年在同一列");
+
+            // 排盤按鈕捲動到可視範圍後應完整可見
+            calc.scrollRectToVisible(new Rectangle(calc.getSize()));
+            Rectangle visible = calc.getVisibleRect();
+            Check.isTrue("捲動後排盤按鈕完整可見", visible.width == calc.getWidth() && visible.height == calc.getHeight(),
+                    "可見範圍 " + visible + "，按鈕大小 " + calc.getSize());
+            ((JComponent) field(frame, "exportPanel")).scrollRectToVisible(new Rectangle(0, 0, 1, 1));
+
+            resize(frame, new Dimension(1250, min.height));
+            Check.isTrue("寬視窗、最大字體時輸入列不換行", sameLine(year, calc),
+                    "視窗寬 " + frame.getWidth() + " 時排盤按鈕已換行");
+            resize(frame, min);
+            Check.equal("視窗由寬縮到最小寬度", min.width, frame.getWidth());
+            checkInputsInsideCard(frame, "最大字體由寬視窗縮到最小寬度");
+        } finally {
+            invoke(frame, "resetFontScale");
+            resize(frame, original);
+        }
+    }
+
+    private static void checkInputsInsideCard(BaziFrame frame, String name) throws ReflectiveOperationException {
+        frame.validate();
+        JComponent export = (JComponent) field(frame, "exportPanel");
+        for (String fieldName : INPUT_FIELDS) {
+            JComponent c = (JComponent) field(frame, fieldName);
+            Container card = c.getParent();
+            while (card != null && card.getParent() != export) {
+                card = card.getParent();
+            }
+            String clipped = card == null ? "不在輸入卡片內" : clipping(c, card);
+            Check.isTrue(name + " " + fieldName + " 完整位於輸入卡片內", c.isShowing() && clipped == null,
+                    clipped == null ? "未顯示" : clipped);
+        }
+    }
+
+    /** 由元件逐層往上到輸入卡片的內容區（扣除邊框），超出任一層的範圍時傳回說明；完整位於其內則傳回 null。 */
+    private static String clipping(Component c, Container card) {
+        Rectangle r = new Rectangle(0, 0, c.getWidth(), c.getHeight());
+        if (r.isEmpty()) {
+            return "大小為 " + c.getSize();
+        }
+        for (Component cur = c; cur != card; cur = cur.getParent()) {
+            Container parent = cur.getParent();
+            r.translate(cur.getX(), cur.getY());
+            Rectangle area = new Rectangle(0, 0, parent.getWidth(), parent.getHeight());
+            if (parent == card) {
+                Insets in = card.getInsets();
+                area = new Rectangle(in.left, in.top,
+                        card.getWidth() - in.left - in.right, card.getHeight() - in.top - in.bottom);
+            }
+            if (!area.contains(r)) {
+                return r + " 超出 " + parent.getClass().getSimpleName() + " 範圍 " + area;
+            }
+        }
+        return null;
+    }
+
+    /** 兩個輸入元件（連同上方標籤）是否排在同一列。 */
+    private static boolean sameLine(JComponent a, JComponent b) {
+        Component wa = a.getParent();
+        Component wb = b.getParent();
+        return wa.getParent() == wb.getParent()
+                && wb.getY() < wa.getY() + wa.getHeight() && wa.getY() < wb.getY() + wb.getHeight();
+    }
+
+    /** 改變視窗大小並完成排版，包含換行列數改變後延後到事件佇列的那次重新排版。 */
+    private static void resize(BaziFrame frame, Dimension size) {
+        frame.setSize(size);
+        frame.validate();
+        flushEvents();
+        frame.validate();
+    }
+
+    /**
+     * 處理事件佇列中已排入的工作。測試全程在 EDT 上執行，排入佇列的工作不會自行執行，
+     * 因此以 SecondaryLoop 在 EDT 上暫時處理事件，直到排在其後的結束事件為止。
+     */
+    private static void flushEvents() {
+        SecondaryLoop loop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+        SwingUtilities.invokeLater(() -> SwingUtilities.invokeLater(loop::exit));
+        loop.enter();
     }
 
     private static void checkDaYunNotClipped(BaziFrame frame, String name) {

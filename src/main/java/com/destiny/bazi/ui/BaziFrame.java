@@ -156,6 +156,8 @@ public final class BaziFrame extends JFrame {
     private int todayLunarYear;
     private int todayLunarMonth;
     private final List<JLabel> inputLabels = new ArrayList<>();
+    /** 輸入區會換行的兩列：放大字體或視窗較窄時換行，所需高度隨寬度改變。 */
+    private final List<JPanel> inputRows = new ArrayList<>();
     private final JButton calcButton = new JButton("排盤");
 
     private final JTextField nameField = new JTextField();
@@ -546,7 +548,8 @@ public final class BaziFrame extends JFrame {
         panel.add(inputSectionTitle, BorderLayout.NORTH);
 
         // 第一列：姓名與人員資料操作；第二列：出生資料與排盤；第三列：操作結果提示。
-        JPanel personRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 4));
+        // 前兩列寬度不足時換行，卡片高度隨之增加（FlowLayout 換行後的列會被裁切）。
+        JPanel personRow = new JPanel(new WrapLayout(FlowLayout.CENTER, 10, 4));
         personRow.setOpaque(false);
         setBaseSize(nameField, 200);
         personRow.add(labeledComponent("姓名", nameField));
@@ -559,7 +562,7 @@ public final class BaziFrame extends JFrame {
         personRow.add(labeledComponent(" ", savePersonButton));
         personRow.add(labeledComponent(" ", openPeopleButton));
 
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 4));
+        JPanel row = new JPanel(new WrapLayout(FlowLayout.CENTER, 12, 4));
         row.setOpaque(false);
 
         row.add(labeledSpinner("年", yearSpinner, 84));
@@ -585,6 +588,8 @@ public final class BaziFrame extends JFrame {
         rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
         rows.add(personRow);
         rows.add(row);
+        inputRows.add(personRow);
+        inputRows.add(row);
         statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         rows.add(statusLabel);
 
@@ -1389,8 +1394,8 @@ public final class BaziFrame extends JFrame {
         Dimension targetSize = exportPanel.getPreferredSize();
         exportPanel.setSize(targetSize);
         exportPanel.validate();
-        // 命盤寬度改變後，其所需高度也跟著改變：清除各層版面快取後重新取得高度。
-        ziWeiChartPanel.invalidate();
+        // 命盤與輸入列的寬度改變後，其所需高度也跟著改變：清除各層版面快取後重新取得高度。
+        invalidateWidthDependentLayout();
         targetSize = new Dimension(targetSize.width, exportPanel.getPreferredSize().height);
         exportPanel.setSize(targetSize);
         exportPanel.validate();
@@ -1407,11 +1412,19 @@ public final class BaziFrame extends JFrame {
         // 還原視窗中的版面：同樣兩次排版（先還原寬度、再依寬度取得高度），並請外層重新配置。
         exportPanel.setSize(originalSize);
         for (int pass = 0; pass < 2; pass++) {
-            ziWeiChartPanel.invalidate();
+            invalidateWidthDependentLayout();
             exportPanel.validate();
         }
         ziWeiChartPanel.revalidate();
         return image;
+    }
+
+    /** 清除高度取決於寬度的元件（紫微命盤、會換行的輸入列）及其外層的版面快取。 */
+    private void invalidateWidthDependentLayout() {
+        ziWeiChartPanel.invalidate();
+        for (JPanel row : inputRows) {
+            row.invalidate();
+        }
     }
 
     // ---------------------------------------------------------------- 儲存／載入
