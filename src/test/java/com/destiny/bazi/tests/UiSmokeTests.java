@@ -148,6 +148,8 @@ final class UiSmokeTests {
                 checkDaYunNotClipped(frame, "縮小字體第" + (step + 1) + "次");
             }
             invoke(frame, "resetFontScale");
+            Check.equal("縮小字體不低於預設大小", 1.0, field(frame, "fontScale"));
+            checkMinimumFontSize(frame, "八字模式");
 
             checkInputCardAtMinimumWidth(frame);
 
@@ -375,6 +377,7 @@ final class UiSmokeTests {
             g.dispose();
         }
         invoke(frame, "resetFontScale");
+        checkMinimumFontSize(frame, "紫微模式");
 
         BufferedImage image = checkExportImage(frame, "紫微匯出圖片");
         Check.isTrue("紫微匯出圖片含完整命盤", image.getHeight() > chart.getPreferredSize().height,
@@ -385,6 +388,32 @@ final class UiSmokeTests {
         Check.equal("切回八字標題", "子平八字排盤", title.getText());
         Check.isTrue("切回八字後紫微命盤隱藏", !chart.isShowing(), "命盤仍顯示");
         checkDaYunNotClipped(frame, "切回八字");
+    }
+
+    /** 畫面上所有顯示中的文字元件字級都不小於 14（基準字級，字體縮放為預設時）。 */
+    private static void checkMinimumFontSize(BaziFrame frame, String name) {
+        frame.validate();
+        List<String> tooSmall = new java.util.ArrayList<>();
+        collectSmallFonts(frame.getContentPane(), tooSmall);
+        Check.isTrue(name + " 最小字級 14", tooSmall.isEmpty(), String.join("、", tooSmall));
+    }
+
+    private static void collectSmallFonts(Container container, List<String> tooSmall) {
+        for (Component c : container.getComponents()) {
+            if (!c.isShowing()) {
+                continue;
+            }
+            boolean text = c instanceof JLabel || c instanceof AbstractButton || c instanceof JComboBox
+                    || c instanceof javax.swing.text.JTextComponent;
+            if (text && c.getFont() != null && c.getFont().getSize2D() < 13.99f) {
+                String label = c instanceof JLabel l ? l.getText()
+                        : c instanceof AbstractButton b ? b.getText() : c.getClass().getSimpleName();
+                tooSmall.add(label + "（" + c.getFont().getSize2D() + "）");
+            }
+            if (c instanceof Container child) {
+                collectSmallFonts(child, tooSmall);
+            }
+        }
     }
 
     private static Object call(Object target, String name, Object... args) throws ReflectiveOperationException {

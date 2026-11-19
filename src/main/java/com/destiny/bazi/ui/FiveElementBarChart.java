@@ -61,7 +61,7 @@ public final class FiveElementBarChart extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         Font labelFont = getFont().deriveFont(Font.BOLD, baseFontSize);
-        Font valueFont = getFont().deriveFont(baseFontSize * 0.9f);
+        Font valueFont = getFont().deriveFont(baseFontSize * 14f / 15f);
         FontMetrics labelMetrics = g2.getFontMetrics(labelFont);
         FontMetrics valueMetrics = g2.getFontMetrics(valueFont);
 

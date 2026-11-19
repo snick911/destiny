@@ -46,32 +46,33 @@ public final class ZiWeiChartPanel extends JComponent {
 
     // ---- 黑底亮字配色（文字皆為亮色，只有雜曜與次要說明較暗） ----
     public static final Color CHART_BG = Color.BLACK;
-    private static final Color HOVER_BG = new Color(0x1E, 0x1E, 0x1E);
-    private static final Color GRID_LINE = new Color(0xA0, 0x8A, 0x35);
+    private static final Color HOVER_BG = new Color(0x22, 0x22, 0x22);
+    private static final Color GRID_LINE = new Color(0xC9, 0xA2, 0x27);
 
-    public static final Color LAYER_DECADE = new Color(0xFF, 0xA5, 0x3D);
-    public static final Color LAYER_YEAR = new Color(0x2F, 0xD8, 0xA8);
-    public static final Color LAYER_MONTH = new Color(0xFF, 0x6F, 0xC8);
+    // 鮮明純色（與 lifeup 的 Java 預設色同一路線）：在黑底上都有足夠對比
+    public static final Color LAYER_DECADE = new Color(0xFF, 0xA5, 0x00);
+    public static final Color LAYER_YEAR = new Color(0x00, 0xFF, 0x99);
+    public static final Color LAYER_MONTH = new Color(0xFF, 0x8F, 0xD0);
     // lifeup 的大限／流年／流月命宮底色
     private static final Color FILL_DECADE = new Color(105, 66, 65);
     private static final Color FILL_YEAR = new Color(40, 66, 42);
     private static final Color FILL_MONTH = new Color(110, 20, 42);
 
-    public static final Color SIHUA_LU = new Color(0x4A, 0xDE, 0x6B);
-    public static final Color SIHUA_QUAN = new Color(0xC6, 0x8C, 0xFF);
-    public static final Color SIHUA_KE = new Color(0x4F, 0xA8, 0xFF);
-    public static final Color SIHUA_JI = new Color(0xFF, 0x5A, 0x5A);
+    public static final Color SIHUA_LU = new Color(0x00, 0xFF, 0x00);
+    public static final Color SIHUA_QUAN = new Color(0xFF, 0x40, 0xFF);
+    public static final Color SIHUA_KE = new Color(0x33, 0x99, 0xFF);
+    public static final Color SIHUA_JI = new Color(0xFF, 0x30, 0x30);
 
     public static final Color STAR_MAIN = Color.WHITE;
-    public static final Color STAR_LUCKY = new Color(0xFF, 0xE4, 0x5C);
-    public static final Color STAR_SHA = new Color(0xFF, 0x5A, 0x5A);
-    public static final Color STAR_LU_MA = new Color(0x47, 0xD7, 0xFF);
-    public static final Color STAR_MINOR = new Color(0x9C, 0x9C, 0x9C);
+    public static final Color STAR_LUCKY = new Color(0xFF, 0xFF, 0x00);
+    public static final Color STAR_SHA = new Color(0xFF, 0x30, 0x30);
+    public static final Color STAR_LU_MA = new Color(0x00, 0xFF, 0xFF);
+    public static final Color STAR_MINOR = new Color(0xB0, 0xB0, 0xB0);
 
     private static final Color TEXT = Color.WHITE;
-    private static final Color TEXT_SOFT = new Color(0xDD, 0xDD, 0xDD);
-    private static final Color TEXT_LABEL = new Color(0xB4, 0xB4, 0xB4);
-    private static final Color LIFE_PALACE = new Color(0xFF, 0xD2, 0x4D);
+    private static final Color TEXT_SOFT = Color.WHITE;
+    private static final Color TEXT_LABEL = new Color(0xD0, 0xD0, 0xD0);
+    private static final Color LIFE_PALACE = new Color(0xFF, 0xD7, 0x00);
 
     private ZiWeiChart chart;
     private String personName = "";
@@ -300,7 +301,7 @@ public final class ZiWeiChartPanel extends JComponent {
         }
 
         int pad = scaled(7);
-        Font infoFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(13.5));
+        Font infoFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14));
         Font nameFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(16));
         FontMetrics nameFm = g2.getFontMetrics(nameFont);
         int left = r.x + pad;
@@ -347,7 +348,7 @@ public final class ZiWeiChartPanel extends JComponent {
         int topA = paintRow(g2, infoTokens, gzWidth, g2.getFontMetrics(gzFont).getAscent(), baselineA, left, right);
 
         // ---- 行運星曜（大祿、流羊…）：在上一列之上，由下往上換行 ----
-        Font luckFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(13));
+        Font luckFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14));
         FontMetrics luckFm = g2.getFontMetrics(luckFont);
         List<Token> luckTokens = new ArrayList<>();
         for (LuckOverlay o : overlays()) {
@@ -415,8 +416,8 @@ public final class ZiWeiChartPanel extends JComponent {
     private void paintStars(Graphics2D g2, int branch, Rectangle area) {
         Font mainFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(17));
         Font auxFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(16));
-        Font minorFont = DarkTheme.BASE_FONT.deriveFont(fontSize(14));
-        Font tagFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(12));
+        Font minorFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14));
+        Font tagFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14));
         FontMetrics tagFm = g2.getFontMetrics(tagFont);
         int tagSize = tagFm.getAscent() + scaled(3);
         int gap = scaled(3);
@@ -527,8 +528,8 @@ public final class ZiWeiChartPanel extends JComponent {
         int y = r.y + pad;
         int maxX = r.x + r.width - pad;
         Font titleFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(20));
-        Font labelFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14.5));
-        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14.5));
+        Font labelFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(15));
+        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(15));
         FontMetrics titleFm = g2.getFontMetrics(titleFont);
         FontMetrics lineFm = g2.getFontMetrics(valueFont);
         int lineHeight = lineFm.getHeight() + scaled(2);
