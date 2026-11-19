@@ -5,6 +5,7 @@ import com.destiny.bazi.core.LunarCalendar;
 import com.destiny.bazi.ziwei.Decade;
 import com.destiny.bazi.ziwei.Layer;
 import com.destiny.bazi.ziwei.LuckOverlay;
+import com.destiny.bazi.ziwei.LuckScore;
 import com.destiny.bazi.ziwei.SiHua;
 import com.destiny.bazi.ziwei.Star;
 import com.destiny.bazi.ziwei.ZiWeiChart;
@@ -21,15 +22,20 @@ import java.util.function.IntConsumer;
 
 /**
  * 紫微斗數命盤：傳統四方格排列（巳午未申在上、寅丑子亥在下），中央兩格合併顯示
- * 命主資料。每宮以直書由右至左列出星曜，星名下方標示四化（本命為實心色塊，
+ * 命主資料與好運指數。每宮以直書由右至左列出星曜，星名下方標示四化（本命為實心色塊，
  * 大限／流年／流月為該層顏色的外框），宮位底部標示宮干支、宮名、大限歲數，
  * 以及疊上的大限／流年／流月宮名、行運星曜與斗君流月。點選宮位可切換到該宮的大限。
+ *
+ * <p>沿用 lifeup 的命盤樣式：每宮 200×200、黑底亮字（主星白、吉星黃、煞星紅、
+ * 祿馬青、四化與行運以鮮明色標示，只有雜曜較暗），大限、流年、流月命宮分別以
+ * 暗紅褐、暗綠、暗紅底色標示。</p>
  */
 public final class ZiWeiChartPanel extends JComponent {
 
-    private static final int BASE_CELL_WIDTH = 172;
-    private static final int BASE_CELL_HEIGHT = 200;
-    private static final int MAX_CELL_WIDTH = 250;
+    /** 每宮 200×200，與 lifeup 的命盤相同大小。 */
+    static final int BASE_CELL_WIDTH = 200;
+    static final int BASE_CELL_HEIGHT = 200;
+    private static final int MAX_CELL_WIDTH = 260;
     private static final int MIN_CELL_WIDTH = 100;
 
     // 地支（子=0）→ 方格欄、列
@@ -38,17 +44,34 @@ public final class ZiWeiChartPanel extends JComponent {
             {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2}, {3, 3}
     };
 
-    public static final Color LAYER_DECADE = new Color(0xE5, 0xA5, 0x5D);
-    public static final Color LAYER_YEAR = new Color(0x5F, 0xB3, 0xA1);
-    public static final Color LAYER_MONTH = new Color(0xD9, 0x82, 0xB5);
+    // ---- 黑底亮字配色（文字皆為亮色，只有雜曜與次要說明較暗） ----
+    public static final Color CHART_BG = Color.BLACK;
+    private static final Color HOVER_BG = new Color(0x1E, 0x1E, 0x1E);
+    private static final Color GRID_LINE = new Color(0xA0, 0x8A, 0x35);
 
-    private static final Color SIHUA_LU = new Color(0x8F, 0xBC, 0x6B);
-    private static final Color SIHUA_QUAN = new Color(0xC7, 0x9B, 0xD9);
-    private static final Color SIHUA_KE = new Color(0x6F, 0xA8, 0xDC);
-    private static final Color SIHUA_JI = new Color(0xE0, 0x6C, 0x75);
+    public static final Color LAYER_DECADE = new Color(0xFF, 0xA5, 0x3D);
+    public static final Color LAYER_YEAR = new Color(0x2F, 0xD8, 0xA8);
+    public static final Color LAYER_MONTH = new Color(0xFF, 0x6F, 0xC8);
+    // lifeup 的大限／流年／流月命宮底色
+    private static final Color FILL_DECADE = new Color(105, 66, 65);
+    private static final Color FILL_YEAR = new Color(40, 66, 42);
+    private static final Color FILL_MONTH = new Color(110, 20, 42);
 
-    private static final Color STAR_MAIN = new Color(0xEC, 0xEF, 0xF4);
-    private static final Color CELL_BG = DarkTheme.BG_PANEL;
+    public static final Color SIHUA_LU = new Color(0x4A, 0xDE, 0x6B);
+    public static final Color SIHUA_QUAN = new Color(0xC6, 0x8C, 0xFF);
+    public static final Color SIHUA_KE = new Color(0x4F, 0xA8, 0xFF);
+    public static final Color SIHUA_JI = new Color(0xFF, 0x5A, 0x5A);
+
+    public static final Color STAR_MAIN = Color.WHITE;
+    public static final Color STAR_LUCKY = new Color(0xFF, 0xE4, 0x5C);
+    public static final Color STAR_SHA = new Color(0xFF, 0x5A, 0x5A);
+    public static final Color STAR_LU_MA = new Color(0x47, 0xD7, 0xFF);
+    public static final Color STAR_MINOR = new Color(0x9C, 0x9C, 0x9C);
+
+    private static final Color TEXT = Color.WHITE;
+    private static final Color TEXT_SOFT = new Color(0xDD, 0xDD, 0xDD);
+    private static final Color TEXT_LABEL = new Color(0xB4, 0xB4, 0xB4);
+    private static final Color LIFE_PALACE = new Color(0xFF, 0xD2, 0x4D);
 
     private ZiWeiChart chart;
     private String personName = "";
@@ -65,7 +88,7 @@ public final class ZiWeiChartPanel extends JComponent {
 
     public ZiWeiChartPanel() {
         setOpaque(true);
-        setBackground(DarkTheme.BG_CARD);
+        setBackground(CHART_BG);
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -240,7 +263,7 @@ public final class ZiWeiChartPanel extends JComponent {
                 cells[9].x - (cells[4].x + cells[4].width), cells[3].y + cells[3].height - cells[4].y);
         paintCenter(g2, center);
 
-        g2.setColor(DarkTheme.BORDER);
+        g2.setColor(GRID_LINE);
         g2.setStroke(new BasicStroke(1f));
         for (Rectangle r : cells) {
             g2.drawRect(r.x, r.y, r.width - 1, r.height - 1);
@@ -253,15 +276,17 @@ public final class ZiWeiChartPanel extends JComponent {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.clip(r);
 
-        // 底色：滑鼠停留時轉亮；最內層行運命宮加上該層顏色的淡底
-        g2.setColor(branch == hoverBranch ? DarkTheme.BG_CARD_HIGHLIGHT : CELL_BG);
-        g2.fillRect(r.x, r.y, r.width, r.height);
-        LuckOverlay deepest = month != null ? month : year != null ? year : decade;
-        if (deepest != null && deepest.getLifeBranch() == branch) {
-            Color c = layerColor(deepest.getLayer());
-            g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 38));
-            g2.fillRect(r.x, r.y, r.width, r.height);
+        // 底色：黑底；與 lifeup 相同，大限、流年、流月命宮依序（大限優先）塗上該層底色
+        Color fill = branch == hoverBranch ? HOVER_BG : CHART_BG;
+        if (decade != null && decade.getLifeBranch() == branch) {
+            fill = FILL_DECADE;
+        } else if (year != null && year.getLifeBranch() == branch) {
+            fill = FILL_YEAR;
+        } else if (month != null && month.getLifeBranch() == branch) {
+            fill = FILL_MONTH;
         }
+        g2.setColor(fill);
+        g2.fillRect(r.x, r.y, r.width, r.height);
         // 各層命宮外框（大限在外、流年居中、流月在內）
         int ring = 0;
         for (LuckOverlay o : overlays()) {
@@ -275,8 +300,8 @@ public final class ZiWeiChartPanel extends JComponent {
         }
 
         int pad = scaled(7);
-        Font infoFont = DarkTheme.BASE_FONT.deriveFont(fontSize(13));
-        Font nameFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(15));
+        Font infoFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(13.5));
+        Font nameFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(16));
         FontMetrics nameFm = g2.getFontMetrics(nameFont);
         int left = r.x + pad;
         int right = r.x + r.width - pad;
@@ -287,11 +312,11 @@ public final class ZiWeiChartPanel extends JComponent {
         boolean isLife = branch == chart.getLifeBranch();
         int x = right;
         if (branch == chart.getBodyBranch()) {
-            x = drawBadge(g2, "身", x, baselineB, nameFm, DarkTheme.ACCENT, true);
+            x = drawBadge(g2, "身", x, baselineB, nameFm, LIFE_PALACE, true);
             x -= scaled(4);
         }
         g2.setFont(nameFont);
-        g2.setColor(isLife ? DarkTheme.ACCENT : DarkTheme.FG_PRIMARY);
+        g2.setColor(isLife ? LIFE_PALACE : TEXT);
         g2.drawString(palaceName, x - nameFm.stringWidth(palaceName), baselineB);
         List<Token> layerLabels = new ArrayList<>();
         for (LuckOverlay o : overlays()) {
@@ -305,14 +330,14 @@ public final class ZiWeiChartPanel extends JComponent {
         // ---- 上一列：宮干支（右）、大限歲數與流月／小限（左） ----
         int baselineA = topB - scaled(3) - nameFm.getDescent();
         String gz = chart.palaceGanZhi(branch);
-        Font gzFont = nameFont.deriveFont(Font.PLAIN);
+        Font gzFont = nameFont;
         g2.setFont(gzFont);
-        g2.setColor(DarkTheme.FG_SECONDARY);
+        g2.setColor(TEXT);
         int gzWidth = g2.getFontMetrics().stringWidth(gz);
         g2.drawString(gz, right - gzWidth, baselineA);
         Decade d = chart.decadeAt(branch);
         List<Token> infoTokens = new ArrayList<>();
-        infoTokens.add(new Token(d.startAge() + "~" + d.endAge(), DarkTheme.FG_SECONDARY, infoFont));
+        infoTokens.add(new Token(d.startAge() + "~" + d.endAge(), TEXT_SOFT, infoFont));
         if (year != null && year.monthAt(branch) > 0) {
             infoTokens.add(new Token(LunarCalendar.MONTH_NAMES[year.monthAt(branch) - 1], LAYER_YEAR, infoFont));
         }
@@ -322,7 +347,7 @@ public final class ZiWeiChartPanel extends JComponent {
         int topA = paintRow(g2, infoTokens, gzWidth, g2.getFontMetrics(gzFont).getAscent(), baselineA, left, right);
 
         // ---- 行運星曜（大祿、流羊…）：在上一列之上，由下往上換行 ----
-        Font luckFont = DarkTheme.BASE_FONT.deriveFont(fontSize(12.5));
+        Font luckFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(13));
         FontMetrics luckFm = g2.getFontMetrics(luckFont);
         List<Token> luckTokens = new ArrayList<>();
         for (LuckOverlay o : overlays()) {
@@ -388,10 +413,10 @@ public final class ZiWeiChartPanel extends JComponent {
     }
 
     private void paintStars(Graphics2D g2, int branch, Rectangle area) {
-        Font mainFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(16));
-        Font auxFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14.5f));
-        Font minorFont = DarkTheme.BASE_FONT.deriveFont(fontSize(13));
-        Font tagFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(11.5f));
+        Font mainFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(17));
+        Font auxFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(16));
+        Font minorFont = DarkTheme.BASE_FONT.deriveFont(fontSize(14));
+        Font tagFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(12));
         FontMetrics tagFm = g2.getFontMetrics(tagFont);
         int tagSize = tagFm.getAscent() + scaled(3);
         int gap = scaled(3);
@@ -455,9 +480,9 @@ public final class ZiWeiChartPanel extends JComponent {
         if (layer == Layer.NATAL) {
             g2.setColor(c);
             g2.fillRoundRect(x, y, size, size, arc, arc);
-            g2.setColor(DarkTheme.BG_APP);
+            g2.setColor(Color.BLACK);
         } else {
-            g2.setColor(DarkTheme.BG_APP);
+            g2.setColor(Color.BLACK);
             g2.fillRoundRect(x, y, size, size, arc, arc);
             g2.setColor(layerColor(layer));
             g2.setStroke(new BasicStroke(Math.max(1f, (float) (1.4 * paintScale))));
@@ -482,7 +507,7 @@ public final class ZiWeiChartPanel extends JComponent {
         g2.setColor(color);
         if (filled) {
             g2.fillRoundRect(x, y, w, h, arc, arc);
-            g2.setColor(DarkTheme.BG_APP);
+            g2.setColor(Color.BLACK);
         } else {
             g2.drawRoundRect(x, y, w, h, arc, arc);
         }
@@ -494,23 +519,24 @@ public final class ZiWeiChartPanel extends JComponent {
     private void paintCenter(Graphics2D g, Rectangle r) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.clip(r);
-        g2.setColor(DarkTheme.BG_CARD);
+        g2.setColor(CHART_BG);
         g2.fillRect(r.x, r.y, r.width, r.height);
 
         int pad = scaled(14);
         int x = r.x + pad;
         int y = r.y + pad;
-        Font titleFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(19));
-        Font labelFont = DarkTheme.BASE_FONT.deriveFont(fontSize(14));
-        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14));
+        int maxX = r.x + r.width - pad;
+        Font titleFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(20));
+        Font labelFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14.5));
+        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, fontSize(14.5));
         FontMetrics titleFm = g2.getFontMetrics(titleFont);
         FontMetrics lineFm = g2.getFontMetrics(valueFont);
         int lineHeight = lineFm.getHeight() + scaled(2);
 
         g2.setFont(titleFont);
-        g2.setColor(DarkTheme.ACCENT);
+        g2.setColor(LIFE_PALACE);
         String title = personName.isEmpty() ? "紫微斗數命盤" : personName + "　紫微斗數命盤";
-        g2.drawString(title, x, y + titleFm.getAscent());
+        g2.drawString(fit(g2, title, maxX - x), x, y + titleFm.getAscent());
         y += titleFm.getHeight() + scaled(6);
 
         LunarCalendar.LunarDate lunar = chart.getLunarDate();
@@ -544,35 +570,42 @@ public final class ZiWeiChartPanel extends JComponent {
             sihua.append(sh.starFor(chart.getYearStem()).label()).append(sh.label()).append(' ');
         }
         rows.add(new String[]{"生年四化", sihua.toString().trim()});
-        drawRows(g2, rows, x, y, r.x + r.width - pad, lineHeight, labelFont, valueFont, DarkTheme.FG_PRIMARY);
-        y += rows.size() * lineHeight + scaled(6);
+        drawRows(g2, rows, x, y, maxX, lineHeight, labelFont, valueFont, TEXT);
+        y += rows.size() * lineHeight + scaled(8);
 
-        List<String[]> luckRows = new ArrayList<>();
-        List<Color> luckColors = new ArrayList<>();
-        for (LuckOverlay o : overlays()) {
-            StringBuilder sb = new StringBuilder(o.getTitle().substring(o.getLayer().label().length()).trim());
-            luckRows.add(new String[]{o.getLayer().label(), sb.toString()});
-            luckColors.add(layerColor(o.getLayer()));
-            StringBuilder sh = new StringBuilder();
-            for (SiHua s : SiHua.values()) {
-                sh.append(s.starFor(o.getStem()).label()).append(s.label()).append(' ');
-            }
-            luckRows.add(new String[]{"", sh.toString().trim()});
-            luckColors.add(layerColor(o.getLayer()));
-        }
-        for (int i = 0; i < luckRows.size(); i++) {
-            drawRows(g2, List.<String[]>of(luckRows.get(i)), x, y, r.x + r.width - pad, lineHeight,
-                    labelFont, valueFont, luckColors.get(i));
+        // 與 lifeup 中宮相同：各層行運的干支，以及該層的好運指數與評語
+        for (String[] row : luckRows()) {
+            Color color = layerColor(Layer.valueOf(row[2]));
+            drawRows(g2, List.<String[]>of(new String[]{row[0], row[1]}), x, y, maxX, lineHeight,
+                    labelFont, valueFont, color);
             y += lineHeight;
         }
-
-        // 圖例佔兩行，放不下（例如視窗極窄）時省略，避免與上方文字重疊
-        FontMetrics legendFm = g2.getFontMetrics(DarkTheme.BASE_FONT.deriveFont(fontSize(12)));
-        int legendTop = r.y + r.height - pad - legendFm.getHeight() * 2 - scaled(2);
-        if (y <= legendTop) {
-            paintLegend(g2, x, r.y + r.height - pad, r.x + r.width - pad);
-        }
         g2.dispose();
+    }
+
+    /** 中宮的行運列：{標籤, 內容, 層}；每層兩列（干支、好運指數與評語）。 */
+    List<String[]> luckRows() {
+        List<String[]> rows = new ArrayList<>();
+        if (chart == null) {
+            return rows;
+        }
+        for (LuckOverlay o : overlays()) {
+            rows.add(new String[]{o.getLayer().label(), o.getTitle().substring(o.getLayer().label().length()).trim(),
+                    o.getLayer().name()});
+            int grade = luckGrade(o.getLayer());
+            rows.add(new String[]{"好運指數", grade + "　" + LuckScore.describe(grade), o.getLayer().name()});
+        }
+        return rows;
+    }
+
+    /** 依 lifeup 公式計算某層的好運指數（流年、流月需要上一層）。 */
+    private int luckGrade(Layer layer) {
+        return switch (layer) {
+            case DECADE -> LuckScore.decadeLuck(chart, decade);
+            case YEAR -> LuckScore.yearLuck(chart, decade, year);
+            case MONTH -> LuckScore.monthLuck(chart, decade, year, month);
+            default -> throw new IllegalArgumentException(layer.toString());
+        };
     }
 
     private void drawRows(Graphics2D g2, List<String[]> rows, int x, int y, int maxX, int lineHeight,
@@ -582,7 +615,7 @@ public final class ZiWeiChartPanel extends JComponent {
         for (String[] row : rows) {
             int baseline = y + labelFm.getAscent();
             g2.setFont(labelFont);
-            g2.setColor(DarkTheme.FG_SECONDARY);
+            g2.setColor(TEXT_LABEL);
             g2.drawString(row[0], x, baseline);
             g2.setFont(valueFont);
             g2.setColor(valueColor);
@@ -604,40 +637,25 @@ public final class ZiWeiChartPanel extends JComponent {
         return s + "…";
     }
 
-    /** 圖例：星曜類別、四化與行運層的顏色（由下往上兩列）。 */
-    private void paintLegend(Graphics2D g2, int x, int bottom, int maxX) {
-        Font font = DarkTheme.BASE_FONT.deriveFont(fontSize(12));
-        g2.setFont(font);
-        FontMetrics fm = g2.getFontMetrics();
-        int sw = scaled(10);
-        int gap = scaled(10);
-
-        String[] catLabels = {"主星", "六吉", "六煞", "祿馬", "雜曜"};
-        Color[] catColors = {STAR_MAIN, DarkTheme.ELEMENT_WOOD, DarkTheme.ELEMENT_FIRE, DarkTheme.ELEMENT_EARTH,
-                DarkTheme.FG_SECONDARY};
-        String[] layerLabels = {"祿", "權", "科", "忌", "大限", "流年", "流月"};
-        Color[] layerColors = {SIHUA_LU, SIHUA_QUAN, SIHUA_KE, SIHUA_JI, LAYER_DECADE, LAYER_YEAR, LAYER_MONTH};
-
-        int baseline2 = bottom - fm.getDescent();
-        int baseline1 = baseline2 - fm.getHeight() - scaled(2);
-        drawLegendRow(g2, catLabels, catColors, x, baseline1, maxX, sw, gap, fm);
-        drawLegendRow(g2, layerLabels, layerColors, x, baseline2, maxX, sw, gap, fm);
-    }
-
-    private void drawLegendRow(Graphics2D g2, String[] labels, Color[] colors, int x, int baseline, int maxX,
-                               int sw, int gap, FontMetrics fm) {
-        int cx = x;
-        for (int i = 0; i < labels.length; i++) {
-            int w = sw + scaled(4) + fm.stringWidth(labels[i]);
-            if (cx + w > maxX) {
-                break;
+    /** 命盤下方的圖例（HTML，供 JLabel 顯示）：星曜類別、四化與行運層的顏色。 */
+    public static String legendHtml() {
+        StringBuilder sb = new StringBuilder("<html><div style='text-align:center'>");
+        Object[][] items = {
+                {"主星", STAR_MAIN}, {"六吉", STAR_LUCKY}, {"六煞", STAR_SHA}, {"祿存天馬", STAR_LU_MA},
+                {"雜曜", STAR_MINOR}, null,
+                {"化祿", SIHUA_LU}, {"化權", SIHUA_QUAN}, {"化科", SIHUA_KE}, {"化忌", SIHUA_JI},
+                {"大限", LAYER_DECADE}, {"流年", LAYER_YEAR}, {"流月", LAYER_MONTH}
+        };
+        for (Object[] item : items) {
+            if (item == null) {
+                sb.append("<br>");
+                continue;
             }
-            g2.setColor(colors[i]);
-            g2.fillRoundRect(cx, baseline - fm.getAscent() + (fm.getAscent() - sw) / 2, sw, sw, scaled(3), scaled(3));
-            g2.setColor(DarkTheme.FG_SECONDARY);
-            g2.drawString(labels[i], cx + sw + scaled(4), baseline);
-            cx += w + gap;
+            Color c = (Color) item[1];
+            sb.append(String.format("<span style='color:#%02x%02x%02x'>■</span>%s　　",
+                    c.getRed(), c.getGreen(), c.getBlue(), item[0]));
         }
+        return sb.append("</div></html>").toString();
     }
 
     private List<LuckOverlay> overlays() {
@@ -659,7 +677,7 @@ public final class ZiWeiChartPanel extends JComponent {
             case DECADE -> LAYER_DECADE;
             case YEAR -> LAYER_YEAR;
             case MONTH -> LAYER_MONTH;
-            default -> DarkTheme.ACCENT;
+            default -> LIFE_PALACE;
         };
     }
 
@@ -672,13 +690,13 @@ public final class ZiWeiChartPanel extends JComponent {
         };
     }
 
-    private static Color starColor(Star star) {
+    static Color starColor(Star star) {
         return switch (star.category()) {
             case MAIN -> STAR_MAIN;
-            case LUCKY -> DarkTheme.ELEMENT_WOOD;
-            case SHA -> DarkTheme.ELEMENT_FIRE;
-            case LU_MA -> DarkTheme.ELEMENT_EARTH;
-            case MINOR -> DarkTheme.FG_SECONDARY;
+            case LUCKY -> STAR_LUCKY;
+            case SHA -> STAR_SHA;
+            case LU_MA -> STAR_LU_MA;
+            case MINOR -> STAR_MINOR;
         };
     }
 }
