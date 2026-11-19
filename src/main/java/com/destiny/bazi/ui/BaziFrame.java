@@ -14,6 +14,7 @@ import com.destiny.bazi.core.LunarCalendar;
 import com.destiny.bazi.core.MonthOrder;
 import com.destiny.bazi.io.BaziFileIO;
 import com.destiny.bazi.io.BirthInput;
+import com.destiny.bazi.io.PersonCsv;
 import com.destiny.bazi.io.PersonStore;
 import com.destiny.bazi.ziwei.Decade;
 import com.destiny.bazi.ziwei.LuckOverlay;
@@ -382,6 +383,8 @@ public final class BaziFrame extends JFrame {
 
         JMenuItem savePerson = menuItem("儲存人員", KeyEvent.VK_D, e -> savePerson());
         JMenuItem openPeople = menuItem("人員查詢...", KeyEvent.VK_F, e -> openPeople());
+        JMenuItem importCsv = menuItem("匯入人員（CSV）...", -1, e -> importPeopleCsv(this));
+        JMenuItem exportCsv = menuItem("匯出人員（CSV）...", -1, e -> exportPeopleCsv(this));
         JMenuItem save = menuItem("儲存結果...", KeyEvent.VK_S, e -> saveResult());
         JMenuItem load = menuItem("載入結果...", KeyEvent.VK_O, e -> loadResult());
         JMenuItem exportImage = menuItem("匯出圖片...", KeyEvent.VK_E, e -> exportImage());
@@ -389,6 +392,8 @@ public final class BaziFrame extends JFrame {
 
         menu.add(savePerson);
         menu.add(openPeople);
+        menu.add(importCsv);
+        menu.add(exportCsv);
         menu.addSeparator();
         menu.add(save);
         menu.add(load);
@@ -1690,9 +1695,104 @@ public final class BaziFrame extends JFrame {
                 applyInput(person);
                 showStatus("已帶入「" + person.name() + "」");
             });
+            personDialog.setCsvActions(() -> importPeopleCsv(personDialog), () -> exportPeopleCsv(personDialog));
             personDialog.setFontScale(fontScale);
         }
         personDialog.open();
+    }
+
+    // ---------------------------------------------------------------- 人員 CSV 匯入／匯出
+
+    /** 選擇 CSV 檔匯入人員資料（格式見 {@link PersonCsv}）。 */
+    private void importPeopleCsv(Component parent) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("匯入人員（CSV）");
+        chooser.setFileFilter(new FileNameExtensionFilter("CSV 檔 (*.csv, *.txt)", "csv", "txt"));
+        if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            PersonCsv.Result result = PersonCsv.read(chooser.getSelectedFile().toPath());
+            PersonCsv.Plan plan = PersonCsv.plan(personStore, result);
+            boolean overwrite = false;
+            if (!plan.changed().isEmpty()) {
+                String names = String.join("、", plan.changed().stream().limit(10).map(BirthInput::name).toList())
+                        + (plan.changed().size() > 10 ? " 等" : "");
+                int choice = JOptionPane.showOptionDialog(parent,
+                        "有 " + plan.changed().size() + " 位人員已存在但出生資料不同：\n" + names
+                                + "\n\n要以 CSV 的資料覆蓋嗎？",
+                        "匯入人員", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null,
+                        new String[]{"覆蓋", "保留原有資料", "取消匯入"}, "保留原有資料");
+                if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) {
+                    return;
+                }
+                overwrite = choice == 0;
+            }
+            String summary = applyImport(plan, overwrite, result.problems());
+            if (personDialog != null) {
+                personDialog.refresh();
+            }
+            JOptionPane.showMessageDialog(parent, summary, "匯入人員",
+                    result.problems().isEmpty() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(parent, "匯入失敗：" + ex.getMessage(), "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** 寫入匯入計畫並回傳結果摘要（含無法匯入的列與原因）。 */
+    private String applyImport(PersonCsv.Plan plan, boolean overwrite, List<PersonCsv.Problem> problems)
+            throws IOException {
+        List<BirthInput> toWrite = new ArrayList<>(plan.added());
+        if (overwrite) {
+            toWrite.addAll(plan.changed());
+        }
+        int[] counts = personStore.putAll(toWrite);
+        StringBuilder sb = new StringBuilder();
+        sb.append("新增 ").append(counts[0]).append(" 位");
+        if (overwrite) {
+            sb.append("，更新 ").append(counts[1]).append(" 位");
+        } else if (!plan.changed().isEmpty()) {
+            sb.append("，保留原有資料 ").append(plan.changed().size()).append(" 位");
+        }
+        if (!plan.unchanged().isEmpty()) {
+            sb.append("，").append(plan.unchanged().size()).append(" 位與現有資料相同");
+        }
+        sb.append("。");
+        if (!problems.isEmpty()) {
+            sb.append("\n\n以下 ").append(problems.size()).append(" 列無法匯入：");
+            problems.stream().limit(20).forEach(p -> sb.append("\n・").append(p));
+            if (problems.size() > 20) {
+                sb.append("\n・…另有 ").append(problems.size() - 20).append(" 列");
+            }
+        }
+        showStatus("已匯入人員：新增 " + counts[0] + " 位" + (overwrite ? "，更新 " + counts[1] + " 位" : ""));
+        return sb.toString();
+    }
+
+    /** 把全部人員資料匯出為 CSV（UTF-8，Excel 可直接開啟；可再匯入）。 */
+    private void exportPeopleCsv(Component parent) {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("匯出人員（CSV）");
+        chooser.setFileFilter(new FileNameExtensionFilter("CSV 檔 (*.csv)", "csv"));
+        chooser.setSelectedFile(new File("人員資料.csv"));
+        if (chooser.showSaveDialog(parent) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        if (!file.getName().toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            file = new File(file.getParentFile(), file.getName() + ".csv");
+        }
+        if (file.exists() && JOptionPane.showConfirmDialog(parent, file.getName() + " 已存在，是否覆蓋？",
+                "確認覆蓋", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            List<BirthInput> people = personStore.list();
+            PersonCsv.write(file.toPath(), people);
+            showStatus("已匯出 " + people.size() + " 位人員至 " + file.getName());
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(parent, "匯出失敗：" + ex.getMessage(), "錯誤", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /** 在輸入區下方顯示操作結果，數秒後自動清除（取代需要按確定的訊息視窗）。 */

@@ -18,8 +18,8 @@ import java.util.function.IntFunction;
 public final class LuckCurveChart extends JComponent {
 
     private static final int BASE_HEIGHT = 270;
-    private static final Color GRID = new Color(0x44, 0x44, 0x44);
-    private static final Color AXIS_TEXT = new Color(0xD0, 0xD0, 0xD0);
+    private static final Color GRID = new Color(0x55, 0x55, 0x55);
+    private static final Color AXIS_TEXT = new Color(0xE6, 0xE6, 0xE6);
     private static final Color TEXT = Color.WHITE;
 
     private final String title;

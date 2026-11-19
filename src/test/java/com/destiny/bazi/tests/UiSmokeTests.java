@@ -175,6 +175,8 @@ final class UiSmokeTests {
             invoke(frame, "openPeople");
             JDialog dialog = (JDialog) field(frame, "personDialog");
             Check.isTrue("人員查詢視窗開啟", dialog.isVisible(), "視窗未顯示");
+            Check.isTrue("人員查詢視窗有匯入 CSV 按鈕", ((JButton) field(dialog, "importButton")).isShowing(), "按鈕未顯示");
+            Check.isTrue("人員查詢視窗有匯出 CSV 按鈕", ((JButton) field(dialog, "exportButton")).isShowing(), "按鈕未顯示");
             JTable table = (JTable) field(dialog, "table");
             JTextField search = (JTextField) field(dialog, "searchField");
             search.setText("不存在的名字");

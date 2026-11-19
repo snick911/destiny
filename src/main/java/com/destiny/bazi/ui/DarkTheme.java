@@ -51,16 +51,17 @@ public final class DarkTheme {
     public static final Color BORDER = new Color(0x3B, 0x42, 0x4B);
     public static final Color SCROLL_THUMB = new Color(0x4C, 0x55, 0x61);
 
-    public static final Color FG_PRIMARY = new Color(0xD8, 0xDE, 0xE9);
-    public static final Color FG_SECONDARY = new Color(0x9A, 0xA5, 0xB1);
-    public static final Color ACCENT = new Color(0x88, 0xC0, 0xD0);
-    public static final Color ACCENT_DIM = new Color(0x5E, 0x81, 0xAC);
+    // 文字與五行皆用明亮色（底色維持深色）：主要文字接近純白、五行用亮綠／亮紅／亮黃／白／亮藍
+    public static final Color FG_PRIMARY = new Color(0xF4, 0xF6, 0xFA);
+    public static final Color FG_SECONDARY = new Color(0xCC, 0xD4, 0xDE);
+    public static final Color ACCENT = new Color(0x6E, 0xD8, 0xFF);
+    public static final Color ACCENT_DIM = new Color(0x3F, 0x7F, 0xD0);
 
-    public static final Color ELEMENT_WOOD = new Color(0x9E, 0xCE, 0x9A);
-    public static final Color ELEMENT_FIRE = new Color(0xE0, 0x8B, 0x79);
-    public static final Color ELEMENT_EARTH = new Color(0xD3, 0xB1, 0x7D);
-    public static final Color ELEMENT_METAL = new Color(0xC9, 0xCF, 0xDA);
-    public static final Color ELEMENT_WATER = new Color(0x81, 0xA1, 0xC1);
+    public static final Color ELEMENT_WOOD = new Color(0x66, 0xFF, 0x77);
+    public static final Color ELEMENT_FIRE = new Color(0xFF, 0x55, 0x55);
+    public static final Color ELEMENT_EARTH = new Color(0xFF, 0xDD, 0x55);
+    public static final Color ELEMENT_METAL = new Color(0xFF, 0xFF, 0xFF);
+    public static final Color ELEMENT_WATER = new Color(0x5C, 0xB8, 0xFF);
 
     private DarkTheme() {
     }
