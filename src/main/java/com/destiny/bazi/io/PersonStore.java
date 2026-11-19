@@ -95,6 +95,40 @@ public final class PersonStore {
         return false;
     }
 
+    /**
+     * 一次新增或更新多位人員（同名者就地取代，其餘依序加在最後），只寫檔一次。
+     *
+     * @return {新增筆數, 取代筆數}
+     */
+    public int[] putAll(List<BirthInput> persons) throws IOException {
+        List<BirthInput> people = list();
+        int added = 0;
+        int replaced = 0;
+        for (BirthInput person : persons) {
+            if (!person.hasName()) {
+                throw new IllegalArgumentException("人員資料必須有姓名");
+            }
+            int index = -1;
+            for (int i = 0; i < people.size(); i++) {
+                if (sameName(people.get(i).name(), person.name())) {
+                    index = i;
+                    break;
+                }
+            }
+            if (index >= 0) {
+                people.set(index, person);
+                replaced++;
+            } else {
+                people.add(person);
+                added++;
+            }
+        }
+        if (added + replaced > 0) {
+            write(people);
+        }
+        return new int[]{added, replaced};
+    }
+
     /** 刪除指定姓名的人員，回傳是否確實刪除。 */
     public boolean remove(String name) throws IOException {
         List<BirthInput> people = list();

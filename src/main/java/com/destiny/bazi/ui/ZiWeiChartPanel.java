@@ -46,33 +46,33 @@ public final class ZiWeiChartPanel extends JComponent {
 
     // ---- 黑底亮字配色（文字皆為亮色，只有雜曜與次要說明較暗） ----
     public static final Color CHART_BG = Color.BLACK;
-    private static final Color HOVER_BG = new Color(0x22, 0x22, 0x22);
-    private static final Color GRID_LINE = new Color(0xC9, 0xA2, 0x27);
+    private static final Color HOVER_BG = new Color(0x26, 0x26, 0x26);
+    private static final Color GRID_LINE = new Color(0xE8, 0xD2, 0x4A);
 
-    // 鮮明純色（與 lifeup 的 Java 預設色同一路線）：在黑底上都有足夠對比
-    public static final Color LAYER_DECADE = new Color(0xFF, 0xA5, 0x00);
-    public static final Color LAYER_YEAR = new Color(0x00, 0xFF, 0x99);
-    public static final Color LAYER_MONTH = new Color(0xFF, 0x8F, 0xD0);
+    // 亮色系（類似終端機的「亮紅、亮黃…」）：純色再加亮，在黑底上更顯眼
+    public static final Color LAYER_DECADE = new Color(0xFF, 0xB8, 0x4D);
+    public static final Color LAYER_YEAR = new Color(0x55, 0xFF, 0xAA);
+    public static final Color LAYER_MONTH = new Color(0xFF, 0x99, 0xDD);
     // lifeup 的大限／流年／流月命宮底色
     private static final Color FILL_DECADE = new Color(105, 66, 65);
     private static final Color FILL_YEAR = new Color(40, 66, 42);
     private static final Color FILL_MONTH = new Color(110, 20, 42);
 
-    public static final Color SIHUA_LU = new Color(0x00, 0xFF, 0x00);
-    public static final Color SIHUA_QUAN = new Color(0xFF, 0x40, 0xFF);
-    public static final Color SIHUA_KE = new Color(0x33, 0x99, 0xFF);
-    public static final Color SIHUA_JI = new Color(0xFF, 0x30, 0x30);
+    public static final Color SIHUA_LU = new Color(0x55, 0xFF, 0x55);
+    public static final Color SIHUA_QUAN = new Color(0xFF, 0x66, 0xFF);
+    public static final Color SIHUA_KE = new Color(0x66, 0xB3, 0xFF);
+    public static final Color SIHUA_JI = new Color(0xFF, 0x55, 0x55);
 
     public static final Color STAR_MAIN = Color.WHITE;
-    public static final Color STAR_LUCKY = new Color(0xFF, 0xFF, 0x00);
-    public static final Color STAR_SHA = new Color(0xFF, 0x30, 0x30);
-    public static final Color STAR_LU_MA = new Color(0x00, 0xFF, 0xFF);
-    public static final Color STAR_MINOR = new Color(0xB0, 0xB0, 0xB0);
+    public static final Color STAR_LUCKY = new Color(0xFF, 0xFF, 0x55);
+    public static final Color STAR_SHA = new Color(0xFF, 0x55, 0x55);
+    public static final Color STAR_LU_MA = new Color(0x55, 0xFF, 0xFF);
+    public static final Color STAR_MINOR = new Color(0xC8, 0xC8, 0xC8);
 
     private static final Color TEXT = Color.WHITE;
     private static final Color TEXT_SOFT = Color.WHITE;
-    private static final Color TEXT_LABEL = new Color(0xD0, 0xD0, 0xD0);
-    private static final Color LIFE_PALACE = new Color(0xFF, 0xD7, 0x00);
+    private static final Color TEXT_LABEL = new Color(0xE6, 0xE6, 0xE6);
+    private static final Color LIFE_PALACE = new Color(0xFF, 0xF0, 0x66);
 
     private ZiWeiChart chart;
     private String personName = "";

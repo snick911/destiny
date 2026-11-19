@@ -45,6 +45,10 @@ public final class PersonDialog extends JDialog {
     private final JButton loadButton = new JButton("帶入");
     private final JButton deleteButton = new JButton("刪除");
     private final JButton closeButton = new JButton("關閉");
+    private final JButton importButton = new JButton("匯入 CSV…");
+    private final JButton exportButton = new JButton("匯出 CSV…");
+    private Runnable importAction;
+    private Runnable exportAction;
 
     public PersonDialog(Frame owner, PersonStore store, Consumer<BirthInput> onLoad) {
         super(owner, "人員查詢", false);
@@ -106,7 +110,28 @@ public final class PersonDialog extends JDialog {
         buttons.add(deleteButton);
         buttons.add(closeButton);
         buttons.add(loadButton);
-        bottom.add(countLabel, BorderLayout.CENTER);
+        JPanel csvButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        csvButtons.setOpaque(false);
+        DarkTheme.styleSecondaryButton(importButton);
+        DarkTheme.styleSecondaryButton(exportButton);
+        importButton.setToolTipText("從 CSV 檔匯入人員（欄位：姓名,曆法,年,月,日,閏月,時,分,性別）");
+        exportButton.setToolTipText("把全部人員匯出為 CSV 檔");
+        importButton.addActionListener(e -> {
+            if (importAction != null) {
+                importAction.run();
+            }
+        });
+        exportButton.addActionListener(e -> {
+            if (exportAction != null) {
+                exportAction.run();
+            }
+        });
+        importButton.setVisible(false);
+        exportButton.setVisible(false);
+        csvButtons.add(importButton);
+        csvButtons.add(exportButton);
+        csvButtons.add(countLabel);
+        bottom.add(csvButtons, BorderLayout.CENTER);
         bottom.add(buttons, BorderLayout.EAST);
         root.add(bottom, BorderLayout.SOUTH);
 
@@ -130,7 +155,7 @@ public final class PersonDialog extends JDialog {
 
         setContentPane(root);
         setFontScale(1.0);
-        setSize(620, 440);
+        setSize(760, 460);
         setMinimumSize(new Dimension(460, 300));
         setLocationRelativeTo(owner);
     }
@@ -187,10 +212,18 @@ public final class PersonDialog extends JDialog {
         }
     }
 
+    /** 設定「匯入 CSV」「匯出 CSV」按鈕的動作（設定後才顯示這兩個按鈕）。 */
+    public void setCsvActions(Runnable importAction, Runnable exportAction) {
+        this.importAction = importAction;
+        this.exportAction = exportAction;
+        importButton.setVisible(importAction != null);
+        exportButton.setVisible(exportAction != null);
+    }
+
     public void setFontScale(double scale) {
         Font font = DarkTheme.BASE_FONT.deriveFont((float) (BASE_SIZE * scale));
         for (JComponent c : List.of(searchField, searchLabel, countLabel, table, table.getTableHeader(),
-                deleteButton, closeButton)) {
+                deleteButton, closeButton, importButton, exportButton)) {
             c.setFont(font);
         }
         loadButton.setFont(font.deriveFont(Font.BOLD));

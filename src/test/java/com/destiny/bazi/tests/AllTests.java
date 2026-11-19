@@ -43,6 +43,7 @@ public final class AllTests {
         Check.run("運勢評分（對照 lifeup）", LuckScoreTests::run);
         Check.run("存檔與載入", FileIoTests::run);
         Check.run("人員資料", FileIoTests::personStore);
+        Check.run("人員資料 CSV 匯入匯出", PersonCsvTests::run);
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("－ 介面冒煙測試               略過（無顯示環境）");
             System.out.println("－ 自我檢測（--self-test）      略過（無顯示環境）");
