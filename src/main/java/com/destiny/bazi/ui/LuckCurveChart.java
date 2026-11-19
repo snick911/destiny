@@ -17,9 +17,9 @@ import java.util.function.IntFunction;
  */
 public final class LuckCurveChart extends JComponent {
 
-    private static final int BASE_HEIGHT = 250;
-    private static final Color GRID = new Color(0x33, 0x33, 0x33);
-    private static final Color AXIS_TEXT = new Color(0xB4, 0xB4, 0xB4);
+    private static final int BASE_HEIGHT = 270;
+    private static final Color GRID = new Color(0x44, 0x44, 0x44);
+    private static final Color AXIS_TEXT = new Color(0xD0, 0xD0, 0xD0);
     private static final Color TEXT = Color.WHITE;
 
     private final String title;
@@ -115,7 +115,7 @@ public final class LuckCurveChart extends JComponent {
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(scaled(380), scaled(BASE_HEIGHT));
+        return new Dimension(scaled(400), scaled(BASE_HEIGHT));
     }
 
     @Override
@@ -146,7 +146,7 @@ public final class LuckCurveChart extends JComponent {
     }
 
     private Plot plot() {
-        Font tickFont = DarkTheme.BASE_FONT.deriveFont((float) (12 * fontScale));
+        Font tickFont = DarkTheme.BASE_FONT.deriveFont((float) (14 * fontScale));
         FontMetrics fm = getFontMetrics(tickFont);
         int min = minFloor;
         int max = maxFloor;
@@ -166,8 +166,8 @@ public final class LuckCurveChart extends JComponent {
     }
 
     private int titleBlockHeight() {
-        FontMetrics titleFm = getFontMetrics(DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (15 * fontScale)));
-        FontMetrics subFm = getFontMetrics(DarkTheme.BASE_FONT.deriveFont((float) (12.5 * fontScale)));
+        FontMetrics titleFm = getFontMetrics(DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (16 * fontScale)));
+        FontMetrics subFm = getFontMetrics(DarkTheme.BASE_FONT.deriveFont((float) (14 * fontScale)));
         return titleFm.getHeight() + subFm.getHeight() + scaled(8);
     }
 
@@ -217,10 +217,10 @@ public final class LuckCurveChart extends JComponent {
         g2.fillRect(0, 0, getWidth(), getHeight());
 
         // 圖名與說明
-        Font titleFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (15 * fontScale));
-        Font subFont = DarkTheme.BASE_FONT.deriveFont((float) (12.5 * fontScale));
-        Font tickFont = DarkTheme.BASE_FONT.deriveFont((float) (12 * fontScale));
-        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (13 * fontScale));
+        Font titleFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (16 * fontScale));
+        Font subFont = DarkTheme.BASE_FONT.deriveFont((float) (14 * fontScale));
+        Font tickFont = DarkTheme.BASE_FONT.deriveFont((float) (14 * fontScale));
+        Font valueFont = DarkTheme.BASE_FONT.deriveFont(Font.BOLD, (float) (14 * fontScale));
         int x0 = scaled(12);
         int y = scaled(10);
         g2.setFont(titleFont);

@@ -48,11 +48,12 @@ public final class PillarPanel extends JPanel {
         padH = compact ? 4 : 10;
         updateBorder();
 
-        titleSize = compact ? 13f : 17f;
-        tenGodSize = compact ? 13f : 15f;
+        // 最小字級 14：大運卡片（緊湊模式）的標題、十神、五行與藏干也不小於 14
+        titleSize = compact ? 14f : 17f;
+        tenGodSize = compact ? 14f : 15f;
         bigCharSize = compact ? 30f : 48f;
-        elementSize = compact ? 12f : 14f;
-        hiddenSize = compact ? 12f : 14f;
+        elementSize = 14f;
+        hiddenSize = 14f;
 
         titleLabel = new JLabel(title, SwingConstants.CENTER);
         titleLabel.setForeground(DarkTheme.FG_SECONDARY);

@@ -67,7 +67,8 @@ public final class BaziFrame extends JFrame {
     private static final String BASE_SIZE_KEY = "destiny.baseSize";
     private static final int INPUT_HEIGHT = 34;
 
-    private static final double FONT_SCALE_MIN = 0.7;
+    /** 最小縮放為 1.0：畫面上任何文字都不小於 14（基準字級）。 */
+    private static final double FONT_SCALE_MIN = 1.0;
     private static final double FONT_SCALE_MAX = 1.8;
     private static final double FONT_SCALE_STEP = 0.1;
 
@@ -301,7 +302,8 @@ public final class BaziFrame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setJMenuBar(buildMenuBar());
         setContentPane(buildContent());
-        setMinimumSize(new Dimension(780, 600));
+        // 最小寬度足以放下原尺寸（800px）的紫微命盤，命盤文字不必縮小到 14 以下
+        setMinimumSize(new Dimension(920, 600));
         pack();
         setLocationRelativeTo(null);
 
